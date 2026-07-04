@@ -1,6 +1,8 @@
-// Server-side core for fetching and parsing full-text articles from PMC
+// Server-side core for fetching and parsing full-text articles from PMC and arXiv
 // This file is imported by both the Vite dev middleware and serverless functions
 // Keep it free of React/Vite imports so it can run on Node.js only
+
+import { parse, HTMLElement } from 'node-html-parser'
 
 export interface FullTextSection {
   heading: string | null
@@ -146,36 +148,194 @@ function parseBioCPassages(passages: BioCPassage[]): FullTextSection[] {
     .filter(section => section.paragraphs.length > 0)
 }
 
-// Main export: fetch full-text article from PMC
-export async function getFullText(params: {
-  pmcid?: string
-  pmid?: string
-  doi?: string
-}): Promise<FullTextResult> {
+// Fetch and parse arXiv HTML using node-html-parser
+async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
   try {
-    // Resolve PMCID
-    const pmcid = await resolvePmcId(params)
-    if (!pmcid) {
+    let html: string | null = null
+
+    // Try arxiv.org first
+    let response = await fetch(`https://arxiv.org/html/${arxivId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+
+    if (!response.ok) {
+      // Fallback to ar5iv
+      response = await fetch(`https://ar5iv.labs.arxiv.org/html/${arxivId}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+    }
+
+    if (!response.ok) {
       return { available: false }
     }
 
-    // Fetch BioC JSON
-    const biocData = await fetchBioCJson(pmcid)
-    if (!biocData?.documents?.[0]?.passages) {
+    html = await response.text()
+    if (!html) {
       return { available: false }
     }
 
-    // Parse passages into sections
-    const sections = parseBioCPassages(biocData.documents[0].passages)
+    const root = parse(html)
+
+    // Pre-clean: replace math elements with their alttext
+    const mathElements = root.querySelectorAll('math')
+    for (const mathEl of mathElements) {
+      const alttext = (mathEl as HTMLElement).getAttribute('alttext')
+      if (alttext) {
+        // Replace the math element with a text node
+        const parent = mathEl.parentNode
+        if (parent) {
+          const textNode = alttext
+          mathEl.replaceWith(textNode)
+        }
+      }
+    }
+
+    // Remove unwanted elements: references, figures, tables, footnotes, etc.
+    const toRemove = root.querySelectorAll(
+      '.ltx_bibliography, .ltx_figure, figure, .ltx_table, table, .ltx_ERROR, .ltx_flex_figure, [class*="ltx_role_footnote"]'
+    )
+    for (const el of toRemove) {
+      el.remove()
+    }
+
+    const sections: FullTextSection[] = []
+
+    // Track cleaned paragraph strings across the whole article. LaTeXML sometimes
+    // nests a .ltx_p inside another .ltx_p (framed/quoted blocks), so a naive
+    // querySelectorAll('.ltx_p') returns both the outer and inner element with
+    // identical text. A real paper never repeats a full paragraph verbatim, so
+    // global exact-string dedup safely removes these parser artifacts.
+    const seen = new Set<string>()
+
+    // Extract abstract if present
+    const abstractEl = root.querySelector('.ltx_abstract')
+    if (abstractEl) {
+      const abstractParagraphs: string[] = []
+      for (const p of abstractEl.querySelectorAll('.ltx_p')) {
+        const text = (p as HTMLElement).text.replace(/\s+/g, ' ').trim()
+        if (text.length > 0 && !seen.has(text)) {
+          seen.add(text)
+          abstractParagraphs.push(text)
+        }
+      }
+
+      if (abstractParagraphs.length > 0) {
+        sections.push({
+          heading: 'Abstract',
+          paragraphs: abstractParagraphs
+        })
+      }
+    }
+
+    // Build sections from ltx_section and ltx_subsection
+    // Strategy: iterate through all sections and subsections in document order.
+    // Paragraphs can be in ltx_para divs or directly as ltx_p elements.
+    // To avoid duplicates from nested subsections, we collect paragraphs that belong
+    // to this section but not to any nested subsection.
+
+    const allSectionHeadings = root.querySelectorAll('.ltx_section, .ltx_subsection')
+
+    for (const sectionEl of allSectionHeadings) {
+      const titleEl = sectionEl.querySelector('.ltx_title_section, .ltx_title_subsection')
+      const heading = titleEl ? titleEl.text.trim() : null
+
+      if (!heading) {
+        continue
+      }
+
+      // Collect paragraphs that are direct children (not in nested subsections)
+      const paragraphs: string[] = []
+      const isSection = sectionEl.classList.contains('ltx_section')
+
+      for (const child of sectionEl.childNodes) {
+        if (typeof child === 'string') continue
+
+        const childEl = child as HTMLElement
+        if (!childEl.classList) continue
+
+        // Skip the title element
+        if (childEl.classList.contains('ltx_title_section') || childEl.classList.contains('ltx_title_subsection')) {
+          continue
+        }
+
+        // If this is a section and we encounter a subsection, skip its contents
+        if (isSection && childEl.classList.contains('ltx_subsection')) {
+          continue
+        }
+
+        // Collect paragraphs from ltx_para divs
+        if (childEl.classList.contains('ltx_para')) {
+          const ps = childEl.querySelectorAll('.ltx_p')
+          for (const p of ps) {
+            const text = (p as HTMLElement).text.replace(/\s+/g, ' ').trim()
+            if (text.length > 0 && !seen.has(text)) {
+              seen.add(text)
+              paragraphs.push(text)
+            }
+          }
+        }
+
+        // Also collect direct ltx_p elements
+        if (childEl.classList.contains('ltx_p')) {
+          const text = childEl.text.replace(/\s+/g, ' ').trim()
+          if (text.length > 0 && !seen.has(text)) {
+            seen.add(text)
+            paragraphs.push(text)
+          }
+        }
+      }
+
+      if (paragraphs.length > 0) {
+        sections.push({ heading, paragraphs })
+      }
+    }
+
     if (sections.length === 0) {
       return { available: false }
     }
 
     return {
       available: true,
-      source: 'PMC (Open Access)',
+      source: 'arXiv',
       sections
     }
+  } catch {
+    return { available: false }
+  }
+}
+
+// Main export: fetch full-text article from PMC, then arXiv
+export async function getFullText(params: {
+  pmcid?: string
+  pmid?: string
+  doi?: string
+  arxivId?: string
+}): Promise<FullTextResult> {
+  try {
+    // Try PMC first
+    const pmcid = await resolvePmcId(params)
+    if (pmcid) {
+      // Fetch BioC JSON
+      const biocData = await fetchBioCJson(pmcid)
+      if (biocData?.documents?.[0]?.passages) {
+        // Parse passages into sections
+        const sections = parseBioCPassages(biocData.documents[0].passages)
+        if (sections.length > 0) {
+          return {
+            available: true,
+            source: 'PMC (Open Access)',
+            sections
+          }
+        }
+      }
+    }
+
+    // Fallback to arXiv if PMC not available
+    if (params.arxivId) {
+      return await getArxivFullText(params.arxivId)
+    }
+
+    return { available: false }
   } catch {
     // Wrap any unexpected errors; never throw
     return { available: false }

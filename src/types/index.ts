@@ -38,6 +38,7 @@ export interface OpenAlexWork {
   cited_by_count: number
   abstract_inverted_index?: Record<string, number[]>
   ids?: { openalex?: string; doi?: string; mag?: string; pmid?: string; pmcid?: string }
+  locations?: Array<{ landing_page_url?: string; pdf_url?: string }>
 }
 
 export interface OpenAlexSearchResponse {
@@ -73,6 +74,7 @@ export interface Article {
   abstract?: string
   pmcid?: string
   pmid?: string
+  arxivId?: string
 }
 
 /* OpenAlex Autocomplete types */

@@ -57,6 +57,51 @@ function extractPmid(pmid?: string | number): string | undefined {
   return String(pmid)
 }
 
+function extractArxivId(work: OpenAlexWork): string | undefined {
+  // Try to extract from DOI: 10.48550/arxiv.XXXX format
+  if (work.doi) {
+    const doiStr = work.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '')
+    const match = doiStr.match(/10\.48550\/arxiv\.(.+)$/i)
+    if (match) {
+      // Remove version suffix (v1, v2, etc.)
+      return match[1].replace(/v\d+$/, '')
+    }
+  }
+
+  // Fallback: scan URLs for arxiv.org patterns
+  const urlsToCheck: string[] = []
+
+  if (work.open_access?.oa_url) {
+    urlsToCheck.push(work.open_access.oa_url)
+  }
+  if (work.best_oa_location?.landing_page_url) {
+    urlsToCheck.push(work.best_oa_location.landing_page_url)
+  }
+  if (work.best_oa_location?.pdf_url) {
+    urlsToCheck.push(work.best_oa_location.pdf_url)
+  }
+  if (work.locations) {
+    for (const loc of work.locations) {
+      if (loc.landing_page_url) urlsToCheck.push(loc.landing_page_url)
+      if (loc.pdf_url) urlsToCheck.push(loc.pdf_url)
+    }
+  }
+
+  // Pattern: arxiv.org/(abs|pdf|html)/<id> where id is new or old format
+  // New format: YYYY.NNNNN[vN]
+  // Old format: category/NNNNNNN[vN] or category.SUBCATEGORY/NNNNNNN[vN]
+  const arxivPattern = /arxiv\.org\/(?:abs|pdf|html)\/([a-z\-]+(?:\.[A-Z]{2})?\/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?/i
+
+  for (const url of urlsToCheck) {
+    const match = url.match(arxivPattern)
+    if (match) {
+      return match[1].replace(/v\d+$/, '')
+    }
+  }
+
+  return undefined
+}
+
 export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
   return {
     id: work.id,
@@ -70,7 +115,8 @@ export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
     citedBy: work.cited_by_count || 0,
     abstract: buildAbstractFromInvertedIndex(work.abstract_inverted_index),
     pmcid: extractPmcId(work.ids?.pmcid),
-    pmid: extractPmid(work.ids?.pmid)
+    pmid: extractPmid(work.ids?.pmid),
+    arxivId: extractArxivId(work)
   }
 }
 

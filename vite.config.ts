@@ -12,8 +12,9 @@ const fulltextPlugin = {
         const pmcid = url.searchParams.get('pmcid') || undefined
         const pmid = url.searchParams.get('pmid') || undefined
         const doi = url.searchParams.get('doi') || undefined
+        const arxivId = url.searchParams.get('arxivId') || undefined
 
-        const result = await getFullText({ pmcid, pmid, doi })
+        const result = await getFullText({ pmcid, pmid, doi, arxivId })
         res.setHeader('Content-Type', 'application/json')
         res.statusCode = 200
         res.end(JSON.stringify(result))
