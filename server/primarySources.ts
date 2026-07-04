@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN'
   snippet?: string
   readUrl: string
 }
@@ -420,6 +420,85 @@ async function fetchDoaj(query: string, page: number): Promise<PrimarySource[]> 
   }
 }
 
+// OAPEN API (DSpace 6 REST)
+async function fetchOapen(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://library.oapen.org/rest/search')
+    url.searchParams.append('query', query)
+    url.searchParams.append('expand', 'bitstreams,metadata')
+    url.searchParams.append('limit', '10')
+    url.searchParams.append('offset', String((page - 1) * 10))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'scholar-app'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as Array<{
+      name?: string
+      handle?: string
+      metadata?: Array<{ key: string; value: string }>
+      bitstreams?: Array<{ bundleName?: string; mimeType?: string; name?: string; sizeBytes?: number; retrieveLink?: string }>
+    }>
+
+    if (!Array.isArray(data)) return []
+
+    const results: PrimarySource[] = []
+
+    for (const item of data) {
+      // Skip partial items (the API returns items with null/empty name)
+      if (!item.name || !item.handle) continue
+
+      const readUrl = `https://library.oapen.org/handle/${item.handle}`
+
+      // The real book PDF is the ORIGINAL-bundle bitstream with a pdf mimeType.
+      // Do NOT fall back to largest sizeBytes (that picks the cover image),
+      // and do NOT match by filename.
+      const pdf = (item.bitstreams || []).find(
+        b => b.bundleName === 'ORIGINAL' && String(b.mimeType || '').toLowerCase().includes('pdf')
+      )
+
+      // Extract metadata
+      const metadata = item.metadata || []
+      const author = metadata.find(m => m.key === 'dc.contributor.author')?.value
+      const dateRaw = metadata.find(m => m.key === 'dc.date.issued')?.value
+      const date = dateRaw ? dateRaw.slice(0, 4) : undefined
+      const abstract = metadata.find(m => m.key === 'dc.description.abstract')?.value
+
+      // With a real PDF bitstream, inline extraction works; otherwise fall back
+      // to the handle page (discovery-only, external Source link).
+      const id = pdf && pdf.retrieveLink
+        ? `oapen:https://library.oapen.org${pdf.retrieveLink}`
+        : `oapen:${readUrl}`
+
+      results.push({
+        id,
+        title: item.name,
+        creator: author,
+        date,
+        sourceName: 'OAPEN' as const,
+        snippet: (abstract || '').replace(/\s+/g, ' ').trim().slice(0, 240) || undefined,
+        readUrl
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -436,7 +515,8 @@ export async function searchPrimarySources(
     fetchWikipedia(query, page),
     fetchWikisource(query, page),
     fetchTheConversation(query, page),
-    fetchDoaj(query, page)
+    fetchDoaj(query, page),
+    fetchOapen(query, page)
   ])
 
   const sources: PrimarySource[][] = []

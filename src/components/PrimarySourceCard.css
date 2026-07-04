@@ -165,6 +165,21 @@
   color: #22c55e;
 }
 
+.source-oapen {
+  background-color: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+
+.theme-dark .source-oapen {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.theme-sepia .source-oapen {
+  background-color: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+
 .primary-snippet {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

@@ -510,6 +510,19 @@ async function getDoajText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from OAPEN (using open-access extractor)
+async function getOapenText(id: string): Promise<FullTextResult> {
+  try {
+    const url = id.replace(/^oapen:/, '')
+    // Only attempt extraction on an actual bitstream URL; a handle-page id
+    // means discovery-only (no downloadable PDF for inline reading).
+    if (!url.includes('/rest/bitstreams/')) return { available: false }
+    return await extractOaFullText(url)
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -527,6 +540,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getTheConversationText(id)
     } else if (id.startsWith('doaj:')) {
       return await getDoajText(id)
+    } else if (id.startsWith('oapen:')) {
+      return await getOapenText(id)
     } else {
       return { available: false }
     }
