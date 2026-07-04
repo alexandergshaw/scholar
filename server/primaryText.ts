@@ -2,6 +2,7 @@
 // This file is imported by both the Vite dev middleware and serverless functions
 // Keep it free of React/Vite imports so it can run on Node.js only
 
+import { parse, HTMLElement } from 'node-html-parser'
 import type { FullTextSection, FullTextResult } from '../src/types'
 
 // Helper: fetch with timeout
@@ -277,6 +278,125 @@ async function getWikipediaText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from Wikisource
+// The MediaWiki extracts API does not return transcluded body text for
+// Wikisource works, so use action=parse and parse the rendered HTML instead.
+async function getWikisourceText(id: string): Promise<FullTextResult> {
+  try {
+    const title = id.replace(/^wikisource:/, '')
+
+    const url = `https://en.wikisource.org/w/api.php?action=parse&prop=text&redirects=1&format=json&page=${encodeURIComponent(title)}`
+
+    const response = await fetchWithTimeout(url, {
+      headers: {
+        'User-Agent': 'scholar-app'
+      }
+    })
+
+    if (!response.ok) {
+      return { available: false }
+    }
+
+    const data = await response.json() as {
+      parse?: {
+        text?: { '*'?: string }
+      }
+    }
+
+    const html = data?.parse?.text?.['*']
+    if (!html) {
+      return { available: false }
+    }
+
+    const root = parse(html)
+
+    // Remove cruft that would pollute the reading text
+    root
+      .querySelectorAll(
+        'style, script, table, .mw-editsection, .reference, sup.reference, .mw-references-wrap, .references, .noprint, .toc, .navbox, .catlinks, .ws-noexport, .mw-headline-number, #headerContainer, .header, .headertemplate, .licenseContainer'
+      )
+      .forEach(el => el.remove())
+
+    // Pick the content root
+    const contentRoot = root.querySelector('.mw-parser-output') || root
+
+    const sections: FullTextSection[] = []
+    const seen = new Set<string>()
+    let currentSection: FullTextSection | null = null
+
+    function pushParagraph(text: string) {
+      const clean = text.replace(/\s+/g, ' ').trim()
+      if (!clean || seen.has(clean)) return
+      seen.add(clean)
+      if (!currentSection) {
+        currentSection = { heading: null, paragraphs: [] }
+        sections.push(currentSection)
+      }
+      currentSection.paragraphs.push(clean)
+    }
+
+    function walkNode(node: HTMLElement) {
+      if (!node.tagName) {
+        // Non-element node; nothing to do
+        return
+      }
+
+      const tagLower = node.tagName.toLowerCase()
+
+      // Headings start a new section
+      if (['h2', 'h3', 'h4'].includes(tagLower)) {
+        const heading = node.text.replace(/\s+/g, ' ').trim()
+        if (heading) {
+          currentSection = { heading, paragraphs: [] }
+          sections.push(currentSection)
+        }
+        return
+      }
+
+      // Paragraphs
+      if (tagLower === 'p') {
+        pushParagraph(node.text)
+        return
+      }
+
+      // Poem blocks (plays/poetry keep their lines in <div class="poem">)
+      if (tagLower === 'div' && (node.getAttribute('class') || '').split(/\s+/).includes('poem')) {
+        pushParagraph(node.text)
+        return
+      }
+
+      // Recurse into children
+      for (const child of node.childNodes) {
+        if (child instanceof HTMLElement) {
+          walkNode(child)
+        }
+      }
+    }
+
+    walkNode(contentRoot)
+
+    // Drop sections with no paragraphs
+    const filteredSections = sections.filter(s => s.paragraphs.length > 0)
+
+    const totalLength = filteredSections.reduce(
+      (sum, s) => sum + s.paragraphs.join(' ').length,
+      0
+    )
+
+    if (totalLength < 200 || filteredSections.length === 0) {
+      return { available: false }
+    }
+
+    return {
+      available: true,
+      source: 'Wikisource',
+      sections: filteredSections
+    }
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -288,6 +408,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getChroniclingAmericaText(id)
     } else if (id.startsWith('wikipedia:')) {
       return await getWikipediaText(id)
+    } else if (id.startsWith('wikisource:')) {
+      return await getWikisourceText(id)
     } else {
       return { available: false }
     }
