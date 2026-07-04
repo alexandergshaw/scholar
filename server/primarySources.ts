@@ -2,17 +2,10 @@
 // Queries three free corpora: Project Gutenberg, Internet Archive, Chronicling America
 // Keep this file free of React/Vite imports so it can run on Node.js only
 
-// node-html-parser is CJS. A static import crashes Vercel's ESM serverless
-// runtime; a dynamic import loads but leaves the named `parse` undefined there
-// (it lives on `.default`). Load lazily and read from `.default` with fallbacks.
-let _htmlLib: { parse: typeof import('node-html-parser').parse } | null = null
-async function loadHtml() {
-  if (!_htmlLib) {
-    const m: any = await import('node-html-parser')
-    _htmlLib = { parse: m.parse ?? m.default?.parse ?? m.default }
-  }
-  return _htmlLib
-}
+// See note in server/fulltextCore.ts: namespace-import node-html-parser (CJS)
+// and read `parse` off `.default` for Vercel serverless interop.
+import * as nodeHtmlParser from 'node-html-parser'
+const parse = (((nodeHtmlParser as any).default ?? nodeHtmlParser).parse) as typeof import('node-html-parser').parse
 
 export interface PrimarySource {
   id: string

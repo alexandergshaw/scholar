@@ -9,10 +9,12 @@
 // See note in fulltextCore.ts: node-html-parser (CJS) must be loaded via a lazy
 // dynamic import, reading `parse` and the `HTMLElement` constructor (used by the
 // runtime `instanceof` checks) off `.default` for Vercel's ESM interop.
-import { createRequire } from 'module'
+// See note in fulltextCore.ts: namespace-import node-html-parser (CJS) and read
+// `parse` and the `HTMLElement` constructor (for instanceof) off `.default`.
+import * as nodeHtmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const _nhp = createRequire(import.meta.url)('node-html-parser') as typeof import('node-html-parser')
-const parse = _nhp.parse
+const _nhp: any = (nodeHtmlParser as any).default ?? nodeHtmlParser
+const parse = _nhp.parse as typeof import('node-html-parser').parse
 const HTMLElementCtor: any = _nhp.HTMLElement
 import type { FullTextSection, FullTextResult } from '../src/types'
 // Lazy loaders: the PDF/OA extraction path pulls in a heavy pdf.js dependency

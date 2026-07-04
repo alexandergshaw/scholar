@@ -7,9 +7,14 @@
 // and a dynamic import()/named-export access is undefined there. createRequire
 // returns the real module.exports (parse, HTMLElement) reliably in dev and on
 // Vercel. HTMLElement is used only as a type here (type-only import).
-import { createRequire } from 'module'
+// node-html-parser is CJS. Use a namespace import (static, so the bundler traces
+// it) and read exports off `.default` (= module.exports). A named import crashes
+// Vercel's ESM runtime (unresolved export); a default import / dynamic import /
+// createRequire all failed there too. Namespace import + `.default` is the form
+// that loads and exposes `parse`/`HTMLElement` in both dev and Vercel.
+import * as nodeHtmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const { parse } = createRequire(import.meta.url)('node-html-parser') as typeof import('node-html-parser')
+const parse = (((nodeHtmlParser as any).default ?? nodeHtmlParser).parse) as typeof import('node-html-parser').parse
 
 export interface FullTextSection {
   heading: string | null

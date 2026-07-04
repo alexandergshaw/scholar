@@ -6,9 +6,11 @@
 // `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
 // See note in fulltextCore.ts: node-html-parser (CJS) must be loaded via a lazy
 // dynamic import, reading `parse` off `.default` for Vercel's ESM interop.
-import { createRequire } from 'module'
+// See note in fulltextCore.ts: namespace-import node-html-parser (CJS) and read
+// `parse` off `.default` for Vercel serverless interop.
+import * as nodeHtmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const { parse } = createRequire(import.meta.url)('node-html-parser') as typeof import('node-html-parser')
+const parse = (((nodeHtmlParser as any).default ?? nodeHtmlParser).parse) as typeof import('node-html-parser').parse
 import { extractText, getDocumentProxy } from 'unpdf'
 
 export interface FullTextSection {
