@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { getFullText } from './server/fulltextCore'
 import { searchPrimarySources } from './server/primarySources'
+import { getPrimaryText } from './server/primaryText'
 
 const fulltextPlugin = {
   name: 'fulltext-proxy',
@@ -50,10 +51,32 @@ const primaryPlugin = {
   }
 }
 
+const primaryTextPlugin = {
+  name: 'primary-text-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/primary-text', async (req: any, res: any, next: any) => {
+      try {
+        const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+        const id = url.searchParams.get('id') || ''
+
+        const result = await getPrimaryText(id)
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify(result))
+      } catch {
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify({ available: false }))
+      }
+    })
+  }
+}
+
 export default defineConfig({
   plugins: [
     fulltextPlugin,
     primaryPlugin,
+    primaryTextPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',
