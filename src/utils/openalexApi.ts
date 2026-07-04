@@ -12,6 +12,7 @@ export interface SearchParams {
   yearTo?: number
   openAccessOnly?: boolean
   fullTextOnly?: boolean
+  readableInlineOnly?: boolean
   page?: number
   perPage?: number
 }
@@ -129,6 +130,10 @@ export async function searchWorks(params: SearchParams): Promise<{ articles: Art
 
   if (params.fullTextOnly) {
     filters.push('has_fulltext:true')
+  }
+
+  if (params.readableInlineOnly) {
+    filters.push('locations.source.id:S4306400194|S2764455111|S4306400806')
   }
 
   if (params.yearFrom !== undefined || params.yearTo !== undefined) {
