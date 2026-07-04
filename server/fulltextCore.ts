@@ -7,9 +7,7 @@
 // serverless runtime because it can't resolve the `HTMLElement` named export
 // from a CommonJS module (FUNCTION_INVOCATION_FAILED). HTMLElement is only used
 // as a type, so import it type-only (erased at runtime).
-import htmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const { parse } = htmlParser
 
 export interface FullTextSection {
   heading: string | null
@@ -227,6 +225,7 @@ async function getEuropePmcFullText(pmcid: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await import('node-html-parser')
     const root = parse(xml)
     const sections: FullTextSection[] = []
     const seen = new Set<string>()
@@ -353,6 +352,7 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Pre-clean: replace math elements with their alttext

@@ -4,9 +4,7 @@
 
 // Default-import the CJS module (see note in fulltextCore.ts): a named import of
 // `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
-import htmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const { parse } = htmlParser
 import type { FullTextSection, FullTextResult } from '../src/types'
 // Lazy loaders: the PDF/OA extraction path pulls in a heavy pdf.js dependency
 // (unpdf, via oaExtractCore). Import it dynamically only when an extraction-based
@@ -333,6 +331,7 @@ async function getWikisourceText(id: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Remove cruft that would pollute the reading text
@@ -439,6 +438,7 @@ async function getTheConversationText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
+    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Find the article body
@@ -564,6 +564,7 @@ async function getStandardEbooksText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
+    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Content root: body or root
