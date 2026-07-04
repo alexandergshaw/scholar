@@ -123,18 +123,6 @@ export default function Reader() {
         <button className="back-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <div className="header-actions">
-          <button
-            className={`favorite-btn ${isFavorite(article.id) ? 'active' : ''}`}
-            onClick={() => toggleFavorite(article)}
-            title={isFavorite(article.id) ? 'Saved' : 'Save article'}
-          >
-            ★
-          </button>
-          <button className="controls-toggle" onClick={() => setShowControls(!showControls)}>
-            ⚙
-          </button>
-        </div>
       </div>
 
       {/* Reading content */}
@@ -191,8 +179,15 @@ export default function Reader() {
             </div>
           )}
 
-          {/* Listen (Read Aloud) and Ask About This features */}
+          {/* Action toolbar: favorites, listen, ask, and settings */}
           <div className="reader-widgets">
+            <button
+              className={`favorite-btn ${isFavorite(article.id) ? 'active' : ''}`}
+              onClick={() => toggleFavorite(article)}
+              title={isFavorite(article.id) ? 'Saved' : 'Save article'}
+            >
+              ★
+            </button>
             <ListenBar
               getText={() => {
                 const ft =
@@ -215,6 +210,9 @@ export default function Reader() {
                 return [article.title, ft].filter(Boolean).join('\n\n')
               }}
             />
+            <button className="controls-toggle" onClick={() => setShowControls(!showControls)}>
+              ⚙
+            </button>
           </div>
 
           {/* Full text content or abstract */}

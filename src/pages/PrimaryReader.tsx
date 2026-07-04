@@ -66,11 +66,6 @@ export default function PrimaryReader() {
         <button className="back-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <div className="header-actions">
-          <button className="controls-toggle" onClick={() => setShowControls(!showControls)}>
-            ⚙
-          </button>
-        </div>
       </div>
 
       {/* Reading content */}
@@ -94,7 +89,7 @@ export default function PrimaryReader() {
             </div>
           )}
 
-          {/* Listen (Read Aloud) and Ask About This features */}
+          {/* Action toolbar: listen, ask, and settings */}
           <div className="reader-widgets">
             <ListenBar
               getText={() => {
@@ -118,6 +113,9 @@ export default function PrimaryReader() {
                 return [title, ft].filter(Boolean).join('\n\n')
               }}
             />
+            <button className="controls-toggle" onClick={() => setShowControls(!showControls)}>
+              ⚙
+            </button>
           </div>
 
           {/* Loading state */}
