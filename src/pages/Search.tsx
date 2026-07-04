@@ -8,6 +8,49 @@ import ArticleCard from '../components/ArticleCard'
 import PrimarySourceCard from '../components/PrimarySourceCard'
 import './Search.css'
 
+const ALL_SOURCE_NAMES = [
+  'Project Gutenberg',
+  'Internet Archive',
+  'Chronicling America',
+  'Wikipedia',
+  'Wikisource',
+  'The Conversation',
+  'DOAJ',
+  'OAPEN',
+  'Standard Ebooks',
+  'Preprints',
+  'Semantic Scholar',
+  'CORE',
+  'Stanford Encyclopedia'
+]
+
+const SOURCE_GROUPS = [
+  {
+    heading: 'Reference & encyclopedias',
+    sources: ['Wikipedia', 'Wikisource', 'Stanford Encyclopedia']
+  },
+  {
+    heading: 'Books',
+    sources: ['Project Gutenberg', 'Standard Ebooks', 'Internet Archive', 'OAPEN']
+  },
+  {
+    heading: 'Journal articles',
+    sources: ['DOAJ', 'CORE', 'Semantic Scholar']
+  },
+  {
+    heading: 'Preprints',
+    sources: ['Preprints']
+  },
+  {
+    heading: 'News & explainers',
+    sources: ['The Conversation']
+  },
+  {
+    heading: 'Historical newspapers',
+    sources: ['Chronicling America']
+  }
+]
+
 export default function Search() {
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('query') || '')
@@ -19,7 +62,10 @@ export default function Search() {
   const [openAccessOnly, setOpenAccessOnly] = useState(searchParams.get('openAccessOnly') === 'true')
   const [fullTextOnly, setFullTextOnly] = useState(searchParams.get('fullText') === 'true')
   const [readableInlineOnly, setReadableInlineOnly] = useState(searchParams.get('readableInline') === 'true')
+  const [sort, setSort] = useState<'relevance' | 'newest' | 'oldest' | 'citations'>('relevance')
+  const [docType, setDocType] = useState('any')
   const [primaryMode, setPrimaryMode] = useState(searchParams.get('primary') === 'true')
+  const [enabledSources, setEnabledSources] = useState<Set<string>>(new Set(ALL_SOURCE_NAMES))
 
   const [articles, setArticles] = useState<Article[]>([])
   const [primarySources, setPrimarySources] = useState<PrimarySource[]>([])
@@ -31,6 +77,7 @@ export default function Search() {
   const [primaryHasMore, setPrimaryHasMore] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
 
   const performSearch = async (pageNum: number = 1) => {
     if (!query) {
@@ -48,8 +95,18 @@ export default function Search() {
 
     try {
       if (primaryMode) {
+        // Check if at least one source is selected
+        if (enabledSources.size === 0) {
+          setError('Select at least one source')
+          setLoading(false)
+          return
+        }
+
         // Primary sources search
-        const result = await searchPrimary(query, pageNum)
+        const sourceList = enabledSources.size === ALL_SOURCE_NAMES.length
+          ? undefined
+          : Array.from(enabledSources)
+        const result = await searchPrimary(query, pageNum, sourceList)
 
         if (pageNum === 1) {
           setPrimarySources(result.results)
@@ -72,6 +129,8 @@ export default function Search() {
           openAccessOnly,
           fullTextOnly,
           readableInlineOnly,
+          sort: sort !== 'relevance' ? sort : undefined,
+          docType: docType !== 'any' ? docType : undefined,
           page: pageNum,
           perPage: 25
         })
@@ -144,7 +203,7 @@ export default function Search() {
             onChange={handlePrimaryModeToggle}
             className="toggle-checkbox"
           />
-          <span className="toggle-text">Primary & historical sources</span>
+          <span className="toggle-text">Books & other sources</span>
         </label>
       </div>
 
@@ -153,7 +212,7 @@ export default function Search() {
           <input
             type="text"
             placeholder={
-              primaryMode ? 'Search primary sources...' : 'Search articles...'
+              primaryMode ? 'Search books, encyclopedias, preprints…' : 'Search articles...'
             }
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -163,7 +222,7 @@ export default function Search() {
 
         {!primaryMode && (
           <>
-            {/* Collapsible More Filters Section */}
+            {/* Collapsible Advanced Filters Section */}
             <button
               type="button"
               className="filters-toggle"
@@ -171,11 +230,42 @@ export default function Search() {
               aria-expanded={filtersOpen}
             >
               <span className="filters-toggle-arrow">{filtersOpen ? '▾' : '▸'}</span>
-              More filters
+              Advanced filters
             </button>
 
             {filtersOpen && (
               <div className="filters-section">
+                <div className="form-row">
+                  <div className="form-group">
+                    <select
+                      value={sort}
+                      onChange={e => setSort(e.target.value as 'relevance' | 'newest' | 'oldest' | 'citations')}
+                      className="search-input"
+                    >
+                      <option value="relevance">Relevance</option>
+                      <option value="newest">Newest</option>
+                      <option value="oldest">Oldest</option>
+                      <option value="citations">Most cited</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <select
+                      value={docType}
+                      onChange={e => setDocType(e.target.value)}
+                      className="search-input"
+                    >
+                      <option value="any">Any type</option>
+                      <option value="article">Journal article</option>
+                      <option value="review">Review</option>
+                      <option value="book">Book</option>
+                      <option value="book-chapter">Book chapter</option>
+                      <option value="preprint">Preprint</option>
+                      <option value="dataset">Dataset</option>
+                      <option value="dissertation">Dissertation</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="form-row">
                   <div className="form-group">
                     <input
@@ -248,6 +338,66 @@ export default function Search() {
                   />
                   <span>Full-text indexed (may be paywalled)</span>
                 </label>
+              </div>
+            )}
+          </>
+        )}
+
+        {primaryMode && (
+          <>
+            {/* Sources filter section */}
+            <button
+              type="button"
+              className="filters-toggle"
+              onClick={() => setSourcesOpen(!sourcesOpen)}
+              aria-expanded={sourcesOpen}
+            >
+              <span className="filters-toggle-arrow">{sourcesOpen ? '▾' : '▸'}</span>
+              Sources
+            </button>
+
+            {sourcesOpen && (
+              <div className="filters-section">
+                <div className="select-all-clear">
+                  <button
+                    type="button"
+                    onClick={() => setEnabledSources(new Set(ALL_SOURCE_NAMES))}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEnabledSources(new Set())}
+                  >
+                    Clear all
+                  </button>
+                </div>
+
+                {SOURCE_GROUPS.map((group) => (
+                  <div key={group.heading} className="filter-group">
+                    <div className="filter-group-heading">{group.heading}</div>
+                    <div className="filter-group-items">
+                      {group.sources.map((sourceName) => (
+                        <label key={sourceName} className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={enabledSources.has(sourceName)}
+                            onChange={(e) => {
+                              const updated = new Set(enabledSources)
+                              if (e.target.checked) {
+                                updated.add(sourceName)
+                              } else {
+                                updated.delete(sourceName)
+                              }
+                              setEnabledSources(updated)
+                            }}
+                          />
+                          <span>{sourceName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>

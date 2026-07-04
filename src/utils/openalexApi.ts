@@ -13,6 +13,8 @@ export interface SearchParams {
   openAccessOnly?: boolean
   fullTextOnly?: boolean
   readableInlineOnly?: boolean
+  sort?: 'relevance' | 'newest' | 'oldest' | 'citations'
+  docType?: string
   page?: number
   perPage?: number
 }
@@ -166,6 +168,10 @@ export async function searchWorks(params: SearchParams): Promise<{ articles: Art
     filters.push(`authorships.author.id:${params.authorId}`)
   }
 
+  if (params.docType && params.docType !== 'any') {
+    filters.push(`type:${params.docType}`)
+  }
+
   let url = `${BASE_URL}/works?mailto=${MAILTO}`
 
   // OpenAlex accepts a single `search` param. Combine the provided fields into
@@ -180,6 +186,17 @@ export async function searchWorks(params: SearchParams): Promise<{ articles: Art
 
   if (filters.length > 0) {
     url += `&filter=${encodeURIComponent(filters.join(','))}`
+  }
+
+  // Handle sort param
+  if (params.sort && params.sort !== 'relevance') {
+    if (params.sort === 'newest') {
+      url += '&sort=publication_date:desc'
+    } else if (params.sort === 'oldest') {
+      url += '&sort=publication_date:asc'
+    } else if (params.sort === 'citations') {
+      url += '&sort=cited_by_count:desc'
+    }
   }
 
   const page = params.page || 1

@@ -825,42 +825,62 @@ async function fetchStanfordEncyclopedia(query: string, page: number): Promise<P
   }
 }
 
-// Main aggregator: query all three sources in parallel, merge round-robin
+interface SourceFetcher {
+  name: string
+  fn: (query: string, page: number) => Promise<PrimarySource[]>
+}
+
+const ALL_FETCHERS: SourceFetcher[] = [
+  { name: 'Project Gutenberg', fn: fetchGutenberg },
+  { name: 'Internet Archive', fn: fetchInternetArchive },
+  { name: 'Chronicling America', fn: fetchChroniclingAmerica },
+  { name: 'Wikipedia', fn: fetchWikipedia },
+  { name: 'Wikisource', fn: fetchWikisource },
+  { name: 'The Conversation', fn: fetchTheConversation },
+  { name: 'DOAJ', fn: fetchDoaj },
+  { name: 'OAPEN', fn: fetchOapen },
+  { name: 'Standard Ebooks', fn: fetchStandardEbooks },
+  { name: 'Preprints', fn: fetchPreprints },
+  { name: 'Semantic Scholar', fn: fetchSemanticScholar },
+  { name: 'CORE', fn: fetchCore },
+  { name: 'Stanford Encyclopedia', fn: fetchStanfordEncyclopedia }
+]
+
+// Main aggregator: query selected sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
-  page = 1
+  page = 1,
+  sources?: string[]
 ): Promise<{ results: PrimarySource[] }> {
   if (!query || !query.trim()) {
     return { results: [] }
   }
 
-  const results = await Promise.allSettled([
-    fetchGutenberg(query, page),
-    fetchInternetArchive(query, page),
-    fetchChroniclingAmerica(query, page),
-    fetchWikipedia(query, page),
-    fetchWikisource(query, page),
-    fetchTheConversation(query, page),
-    fetchDoaj(query, page),
-    fetchOapen(query, page),
-    fetchStandardEbooks(query, page),
-    fetchPreprints(query, page),
-    fetchSemanticScholar(query, page),
-    fetchCore(query, page),
-    fetchStanfordEncyclopedia(query, page)
-  ])
+  // Filter fetchers: if sources array is provided, only include matching names
+  const activeFetchers = sources && sources.length > 0
+    ? ALL_FETCHERS.filter(f => sources.includes(f.name))
+    : ALL_FETCHERS
 
-  const sources: PrimarySource[][] = []
+  // If no sources match, return empty
+  if (activeFetchers.length === 0) {
+    return { results: [] }
+  }
+
+  const results = await Promise.allSettled(
+    activeFetchers.map(f => f.fn(query, page))
+  )
+
+  const sourceResults: PrimarySource[][] = []
   for (const result of results) {
-    sources.push(result.status === 'fulfilled' ? result.value : [])
+    sourceResults.push(result.status === 'fulfilled' ? result.value : [])
   }
 
   // Round-robin interleave
   const merged: PrimarySource[] = []
-  const maxLen = Math.max(...sources.map(s => s.length))
+  const maxLen = Math.max(...sourceResults.map(s => s.length))
 
   for (let i = 0; i < maxLen; i++) {
-    for (const source of sources) {
+    for (const source of sourceResults) {
       if (i < source.length) {
         merged.push(source[i])
       }

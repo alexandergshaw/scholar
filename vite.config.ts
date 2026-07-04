@@ -105,8 +105,19 @@ const primaryPlugin = {
         const url = new URL(req.originalUrl, `http://${req.headers.host}`)
         const q = url.searchParams.get('q') || ''
         const page = Number(url.searchParams.get('page')) || 1
+        const sources = url.searchParams.get('sources') || ''
 
-        const result = await searchPrimarySources(q, page)
+        // Parse sources param (comma-separated)
+        let sourceList: string[] | undefined
+        if (sources) {
+          sourceList = sources
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+          if (sourceList.length === 0) sourceList = undefined
+        }
+
+        const result = await searchPrimarySources(q, page, sourceList)
         res.setHeader('Content-Type', 'application/json')
         res.statusCode = 200
         res.end(JSON.stringify(result))
