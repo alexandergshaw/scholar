@@ -55,7 +55,8 @@ function extractPmcId(pmcid?: string): string | undefined {
 
 function extractPmid(pmid?: string | number): string | undefined {
   if (!pmid) return undefined
-  return String(pmid)
+  const match = String(pmid).match(/(\d+)\s*$/)
+  return match ? match[1] : undefined
 }
 
 function extractArxivId(work: OpenAlexWork): string | undefined {

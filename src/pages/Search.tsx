@@ -234,19 +234,19 @@ export default function Search() {
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={fullTextOnly}
-                    onChange={e => setFullTextOnly(e.target.checked)}
+                    checked={readableInlineOnly}
+                    onChange={e => setReadableInlineOnly(e.target.checked)}
                   />
-                  <span>Full text available only</span>
+                  <span>Readable in-app (arXiv/PMC)</span>
                 </label>
 
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={readableInlineOnly}
-                    onChange={e => setReadableInlineOnly(e.target.checked)}
+                    checked={fullTextOnly}
+                    onChange={e => setFullTextOnly(e.target.checked)}
                   />
-                  <span>Readable inline (arXiv/PMC)</span>
+                  <span>Full-text indexed (may be paywalled)</span>
                 </label>
               </div>
             )}

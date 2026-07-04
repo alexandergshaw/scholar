@@ -320,9 +320,14 @@ export default function Reader() {
             </>
           )}
 
-          {!fullTextLoading && !fullText?.available && article.abstract && (
+          {!fullTextLoading && !extracting && !fullText?.available && article.abstract && (
             <div className="abstract-section">
               <h2>Abstract</h2>
+              {!(fullText && fullText.freeUrl) && (
+                <p className="abstract-note">
+                  The full text couldn't be retrieved for this article, so only the abstract is shown. Use the link below to read it at the source.
+                </p>
+              )}
               <p>{article.abstract}</p>
             </div>
           )}
