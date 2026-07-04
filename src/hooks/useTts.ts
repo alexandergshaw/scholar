@@ -11,6 +11,7 @@ interface UseTtsReturn {
   pause: () => void
   resume: () => void
   stop: () => void
+  changeVoice: (newVoiceURI: string | null) => void
 }
 
 // Helper to rank voice naturalness
@@ -49,6 +50,11 @@ export function useTts(): UseTtsReturn {
   const [paused, setPaused] = useState(false)
   const [syncIntervalId, setSyncIntervalId] = useState<number | null>(null)
   const hasStartedRef = useRef(false)
+
+  // Track current text and position for voice switching
+  const currentTextRef = useRef<string>('')
+  const currentCharIndexRef = useRef<number>(0)
+  const chunkStartOffsetsRef = useRef<number[]>([])
 
   const { voiceURI, rate, pitch, setVoiceURI } = useTtsSettingsStore()
 
@@ -132,7 +138,7 @@ export function useTts(): UseTtsReturn {
 
   // Build, queue, and speak chunks
   const buildAndQueueUtterances = useCallback(
-    (text: string) => {
+    (text: string, voiceOverride?: string | null) => {
       if (!supported || !window.speechSynthesis) return
 
       // Chunk text into sentences
@@ -158,8 +164,18 @@ export function useTts(): UseTtsReturn {
 
       if (chunks.length === 0) return
 
-      // Find the selected voice
-      const selectedVoice = voiceURI ? voices.find(v => v.voiceURI === voiceURI) : undefined
+      // Calculate and store chunk start offsets
+      const offsets: number[] = []
+      let offset = 0
+      chunks.forEach((chunk) => {
+        offsets.push(offset)
+        offset += chunk.length + 1 // +1 for space between chunks
+      })
+      chunkStartOffsetsRef.current = offsets
+
+      // Use provided voice override or current voiceURI
+      const effectiveVoiceURI = voiceOverride !== undefined ? voiceOverride : voiceURI
+      const selectedVoice = effectiveVoiceURI ? voices.find(v => v.voiceURI === effectiveVoiceURI) : undefined
 
       // Queue utterances with event handlers
       chunks.forEach((chunk, idx) => {
@@ -178,6 +194,14 @@ export function useTts(): UseTtsReturn {
             setSpeaking(true)
             setPaused(false)
           }
+        }
+
+        // Set onboundary to track character position
+        utterance.onboundary = (e) => {
+          // Calculate absolute character index
+          const chunkStartOffset = chunkStartOffsetsRef.current[idx] || 0
+          const absoluteIndex = chunkStartOffset + (e.charIndex || 0)
+          currentCharIndexRef.current = absoluteIndex
         }
 
         // Set onend on the LAST utterance
@@ -210,6 +234,10 @@ export function useTts(): UseTtsReturn {
   const speak = useCallback(
     (text: string) => {
       if (!supported || !window.speechSynthesis) return
+
+      // Store full text and reset position
+      currentTextRef.current = text
+      currentCharIndexRef.current = 0
 
       // Set optimistic state immediately for responsive UI
       setSpeaking(true)
@@ -255,6 +283,59 @@ export function useTts(): UseTtsReturn {
     stopSyncInterval()
   }, [stopSyncInterval])
 
+  const changeVoice = useCallback(
+    (newVoiceURI: string | null) => {
+      if (!supported || !window.speechSynthesis) return
+
+      // If not currently speaking, do nothing
+      if (!speaking) return
+
+      // Capture current state
+      const wasPaused = paused
+      const currentPosition = currentCharIndexRef.current
+      const fullText = currentTextRef.current
+
+      // Cancel current speech
+      window.speechSynthesis.cancel()
+      hasStartedRef.current = false
+
+      // Determine remaining text to speak
+      const remainingText = fullText.slice(currentPosition)
+      if (!remainingText.trim()) {
+        // Reached end, stop gracefully
+        setSpeaking(false)
+        setPaused(false)
+        return
+      }
+
+      // Reset position and rebuild utterances with new voice.
+      // Store remainingText as the new tracked text so onboundary's char index
+      // and currentTextRef stay in the same coordinate space across consecutive
+      // voice switches (otherwise a 2nd switch slices original text by a
+      // remaining-text-relative index and jumps to the wrong spot).
+      currentTextRef.current = remainingText
+      currentCharIndexRef.current = 0
+
+      // Use a small delay to avoid cancel-race condition
+      setTimeout(() => {
+        buildAndQueueUtterances(remainingText, newVoiceURI)
+        startSyncInterval()
+
+        // If was paused, pause immediately after starting
+        if (wasPaused && window.speechSynthesis) {
+          // Wait a tiny bit for speech to start, then pause
+          setTimeout(() => {
+            if (window.speechSynthesis.speaking) {
+              window.speechSynthesis.pause()
+              setPaused(true)
+            }
+          }, 50)
+        }
+      }, 120)
+    },
+    [supported, speaking, paused, buildAndQueueUtterances, startSyncInterval]
+  )
+
   return {
     supported,
     voices,
@@ -264,6 +345,7 @@ export function useTts(): UseTtsReturn {
     speak,
     pause,
     resume,
-    stop
+    stop,
+    changeVoice
   }
 }

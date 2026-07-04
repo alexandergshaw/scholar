@@ -27,6 +27,7 @@ interface UseCloudTtsReturn {
   pause: () => void
   resume: () => void
   stop: () => void
+  changeVoice: (newVoiceId: string) => void
 }
 
 export function useCloudTts(): UseCloudTtsReturn {
@@ -40,6 +41,7 @@ export function useCloudTts(): UseCloudTtsReturn {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const chunksRef = useRef<string[]>([])
   const currentChunkIndexRef = useRef(0)
+  const fullTextRef = useRef<string>('')
 
   // Helper to map pitch from 0-2 range to Google -20..20 range
   const mapPitch = (p: number): number => {
@@ -103,21 +105,22 @@ export function useCloudTts(): UseCloudTtsReturn {
   }, [])
 
   const fetchAndPlayChunk = useCallback(
-    async (chunkIndex: number) => {
+    async (chunkIndex: number, voiceOverride?: string, seekFraction?: number) => {
       if (chunkIndex >= chunksRef.current.length) return
 
       const chunk = chunksRef.current[chunkIndex]
       setLoading(true)
 
       try {
-        const voiceInfo = CURATED_CLOUD_VOICES.find((v) => v.id === cloudVoice) || CURATED_CLOUD_VOICES[0]
+        const effectiveVoice = voiceOverride || cloudVoice
+        const voiceInfo = CURATED_CLOUD_VOICES.find((v) => v.id === effectiveVoice) || CURATED_CLOUD_VOICES[0]
 
         const response = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: chunk,
-            voice: cloudVoice,
+            voice: effectiveVoice,
             languageCode: voiceInfo.languageCode,
             rate,
             pitch: mapPitch(pitch)
@@ -156,6 +159,23 @@ export function useCloudTts(): UseCloudTtsReturn {
 
         if (result.audio && audioRef.current) {
           audioRef.current.src = 'data:audio/mp3;base64,' + result.audio
+
+          // Only seek when a voice change asked us to preserve position within
+          // the current chunk. Normal chunk advancement plays from the start.
+          if (seekFraction !== undefined) {
+            const clampedFraction = Math.max(0, Math.min(1, seekFraction))
+            const handleLoadedMetadata = () => {
+              if (audioRef.current) {
+                const newDuration = audioRef.current.duration
+                if (isFinite(newDuration) && newDuration > 0) {
+                  audioRef.current.currentTime = clampedFraction * newDuration
+                }
+                audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata)
+              }
+            }
+            audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata)
+          }
+
           audioRef.current.play()
           setLoading(false)
           setSpeaking(true)
@@ -173,6 +193,9 @@ export function useCloudTts(): UseCloudTtsReturn {
   const speak = useCallback(
     (text: string) => {
       if (!text?.trim()) return
+
+      // Store full text
+      fullTextRef.current = text
 
       // Stop any current playback
       if (audioRef.current) {
@@ -219,6 +242,51 @@ export function useCloudTts(): UseCloudTtsReturn {
     currentChunkIndexRef.current = 0
   }, [])
 
+  const changeVoice = useCallback(
+    (newVoiceId: string) => {
+      // If not currently speaking or loading, do nothing
+      if (!speaking && !loading) return
+
+      const currentChunkIndex = currentChunkIndexRef.current
+
+      // If we're past the chunks, stop gracefully
+      if (currentChunkIndex >= chunksRef.current.length) {
+        setSpeaking(false)
+        setPaused(false)
+        return
+      }
+
+      // Capture pause state before re-fetching
+      const wasPaused = paused
+
+      // Capture the current playback position within this chunk as a fraction
+      let seekFraction = 0
+      if (audioRef.current) {
+        const dur = audioRef.current.duration
+        const cur = audioRef.current.currentTime
+        if (isFinite(dur) && dur > 0) {
+          seekFraction = Math.max(0, Math.min(1, cur / dur))
+        }
+      }
+
+      // Re-fetch and play current chunk with new voice, restoring position
+      fetchAndPlayChunk(currentChunkIndex, newVoiceId, seekFraction)
+
+      // If was paused, pause immediately after audio loads
+      if (wasPaused && audioRef.current) {
+        const handleLoadedMetadata = () => {
+          if (audioRef.current) {
+            audioRef.current.pause()
+            setPaused(true)
+            audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata)
+          }
+        }
+        audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata)
+      }
+    },
+    [speaking, loading, paused, fetchAndPlayChunk]
+  )
+
   return {
     speaking,
     paused,
@@ -227,6 +295,7 @@ export function useCloudTts(): UseCloudTtsReturn {
     speak,
     pause,
     resume,
-    stop
+    stop,
+    changeVoice
   }
 }

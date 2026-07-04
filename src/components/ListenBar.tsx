@@ -38,10 +38,22 @@ function naturalnessRank(voice: SpeechSynthesisVoice): number {
 }
 
 export default function ListenBar({ getText }: ListenBarProps) {
-  const { supported, sortedVoices, speaking, paused, speak, pause, resume, stop } = useTts()
-  const { speaking: cloudSpeaking, paused: cloudPaused, loading: cloudLoading, error: cloudError, speak: cloudSpeak, pause: cloudPause, resume: cloudResume, stop: cloudStop } = useCloudTts()
+  const { supported, sortedVoices, speaking, paused, speak, pause, resume, stop, changeVoice } = useTts()
+  const { speaking: cloudSpeaking, paused: cloudPaused, loading: cloudLoading, error: cloudError, speak: cloudSpeak, pause: cloudPause, resume: cloudResume, stop: cloudStop, changeVoice: changeCloudVoice } = useCloudTts()
   const { voiceURI, rate, pitch, engine, cloudVoice, setVoiceURI, setRate, setPitch, setEngine, setCloudVoice } = useTtsSettingsStore()
   const [showSettings, setShowSettings] = useState(false)
+
+  // Handle device voice change
+  const handleDeviceVoiceChange = (newVoiceURI: string | null) => {
+    setVoiceURI(newVoiceURI)
+    changeVoice(newVoiceURI)
+  }
+
+  // Handle cloud voice change
+  const handleCloudVoiceChange = (newVoiceId: string) => {
+    setCloudVoice(newVoiceId)
+    changeCloudVoice(newVoiceId)
+  }
 
   if (!supported) {
     return null
@@ -173,7 +185,7 @@ export default function ListenBar({ getText }: ListenBarProps) {
                 <select
                   className="voice-select"
                   value={voiceURI || ''}
-                  onChange={(e) => setVoiceURI(e.target.value || null)}
+                  onChange={(e) => handleDeviceVoiceChange(e.target.value || null)}
                 >
                   <option value="">System default</option>
                   {naturalVoices.length > 0 && (
@@ -202,7 +214,7 @@ export default function ListenBar({ getText }: ListenBarProps) {
               <select
                 className="voice-select"
                 value={cloudVoice}
-                onChange={(e) => setCloudVoice(e.target.value)}
+                onChange={(e) => handleCloudVoiceChange(e.target.value)}
               >
                 {CURATED_CLOUD_VOICES.map((voice) => (
                   <option key={voice.id} value={voice.id}>
