@@ -145,6 +145,14 @@
   margin-bottom: 1em;
 }
 
+.reader-widgets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5em;
+  position: relative;
+}
+
 .read-full-text-container {
   margin-top: 2em;
   padding-top: 2em;

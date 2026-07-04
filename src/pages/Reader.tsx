@@ -5,6 +5,7 @@ import { useFavoritesStore } from '../stores/favoritesStore'
 import { useRecentsStore } from '../stores/recentsStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
+import ListenBar from '../components/ListenBar'
 import { Article, FullTextResult } from '../types'
 import { getWorkById, shortIdOf } from '../utils/openalexApi'
 import { fetchFullText } from '../utils/fulltextApi'
@@ -182,18 +183,31 @@ export default function Reader() {
             )}
           </div>
 
-          {/* Ask About This feature */}
-          <AskBox
-            getContext={() => {
-              const ft =
-                fullText && fullText.available
-                  ? fullText.sections
-                      .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('\n'))
-                      .join('\n\n')
-                  : article.abstract || ''
-              return [article.title, ft].filter(Boolean).join('\n\n')
-            }}
-          />
+          {/* Listen (Read Aloud) and Ask About This features */}
+          <div className="reader-widgets">
+            <ListenBar
+              getText={() => {
+                const ft =
+                  fullText && fullText.available
+                    ? fullText.sections
+                        .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('. '))
+                        .join('. ')
+                    : article.abstract || ''
+                return [article.title, ft].filter(Boolean).join('. ')
+              }}
+            />
+            <AskBox
+              getContext={() => {
+                const ft =
+                  fullText && fullText.available
+                    ? fullText.sections
+                        .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('\n'))
+                        .join('\n\n')
+                    : article.abstract || ''
+                return [article.title, ft].filter(Boolean).join('\n\n')
+              }}
+            />
+          </div>
 
           {/* Full text content or abstract */}
           {fullTextLoading && (

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
+import ListenBar from '../components/ListenBar'
 import { FullTextResult } from '../types'
 import { fetchPrimaryText } from '../utils/primaryTextApi'
 import './Reader.css'
@@ -93,18 +94,31 @@ export default function PrimaryReader() {
             </div>
           )}
 
-          {/* Ask About This feature */}
-          <AskBox
-            getContext={() => {
-              const ft =
-                primaryText && primaryText.available
-                  ? primaryText.sections
-                      .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('\n'))
-                      .join('\n\n')
-                  : ''
-              return [title, ft].filter(Boolean).join('\n\n')
-            }}
-          />
+          {/* Listen (Read Aloud) and Ask About This features */}
+          <div className="reader-widgets">
+            <ListenBar
+              getText={() => {
+                const ft =
+                  primaryText && primaryText.available
+                    ? primaryText.sections
+                        .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('. '))
+                        .join('. ')
+                    : ''
+                return [title, ft].filter(Boolean).join('. ')
+              }}
+            />
+            <AskBox
+              getContext={() => {
+                const ft =
+                  primaryText && primaryText.available
+                    ? primaryText.sections
+                        .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('\n'))
+                        .join('\n\n')
+                    : ''
+                return [title, ft].filter(Boolean).join('\n\n')
+              }}
+            />
+          </div>
 
           {/* Loading state */}
           {primaryTextLoading && (
