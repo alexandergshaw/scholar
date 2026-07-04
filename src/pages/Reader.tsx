@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Star, Settings2, X, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Star, Settings2, X, ExternalLink, Download, Check } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useRecentsStore } from '../stores/recentsStore'
+import { useOfflineStore } from '../stores/offlineStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
 import ListenBar from '../components/ListenBar'
@@ -22,13 +23,16 @@ export default function Reader() {
   const [fullText, setFullText] = useState<FullTextResult | null>(null)
   const [fullTextLoading, setFullTextLoading] = useState(false)
   const [extracting, setExtracting] = useState(false)
+  const [offlineError, setOfflineError] = useState<string | null>(null)
 
   const { fontSize, fontFamily, lineSpacing } = useReaderSettingsStore()
   const { isFavorite, toggleFavorite } = useFavoritesStore()
   const { addRecent } = useRecentsStore()
+  const { saveOffline, removeOffline } = useOfflineStore()
+  const isSavedOffline = useOfflineStore(state => state.isSavedOffline)
 
-  // Load the article: first from the persisted favorites/recents stores, then
-  // fall back to fetching it directly from OpenAlex by id. The fallback makes
+  // Load the article: first check offline store, then from persisted favorites/recents stores,
+  // then fall back to fetching it directly from OpenAlex by id. The fallback makes
   // reading work for fresh search results and survives a page reload / deep link.
   useEffect(() => {
     if (!articleId) {
@@ -40,6 +44,13 @@ export default function Reader() {
     setArticle(null)
     setFullText(null)
     setFullTextLoading(false)
+
+    const savedOffline = useOfflineStore.getState().getOffline(articleId)
+    if (savedOffline) {
+      setArticle(savedOffline.article)
+      addRecent(savedOffline.article)
+      return
+    }
 
     const favorites = useFavoritesStore.getState().favorites
     const recents = useRecentsStore.getState().recents
@@ -75,6 +86,15 @@ export default function Reader() {
     let cancelled = false
 
     const loadFullText = async () => {
+      // Check for saved offline copy first
+      const savedOffline = useOfflineStore.getState().getOffline(article.id)
+      if (savedOffline) {
+        setFullText(savedOffline.fullText)
+        setFullTextLoading(false)
+        setExtracting(false)
+        return
+      }
+
       setFullTextLoading(true)
       setExtracting(false)
       const result = await fetchFullText(article)
@@ -196,7 +216,7 @@ export default function Reader() {
             </div>
           )}
 
-          {/* Action toolbar: favorites, listen, ask, and settings */}
+          {/* Action toolbar: favorites, offline, listen, ask, and settings */}
           <div className="reader-widgets">
             <button
               className={`favorite-btn ${isFavorite(article.id) ? 'active' : ''}`}
@@ -205,6 +225,38 @@ export default function Reader() {
             >
               <Star size={18} fill={isFavorite(article.id) ? 'currentColor' : 'none'} />
             </button>
+            {(() => {
+              const canSave = !!fullText && fullText.available
+              const isSaved = isSavedOffline(article.id)
+              const isDisabled = !canSave && !isSaved
+
+              let title = 'No full text available to save offline'
+              if (isSaved) title = 'Saved for offline reading'
+              else if (canSave) title = 'Save for offline reading'
+
+              return (
+                <button
+                  className={`offline-btn ${isSaved ? 'active' : ''}`}
+                  onClick={() => {
+                    if (isSaved) {
+                      removeOffline(article.id)
+                      setOfflineError(null)
+                    } else if (canSave && fullText && fullText.available) {
+                      const success = saveOffline(article, fullText)
+                      if (!success) {
+                        setOfflineError('Couldn\'t save offline — storage may be full.')
+                      } else {
+                        setOfflineError(null)
+                      }
+                    }
+                  }}
+                  disabled={isDisabled}
+                  title={title}
+                >
+                  {isSaved ? <Check size={18} /> : <Download size={18} />}
+                </button>
+              )
+            })()}
             <ListenBar
               getText={() => {
                 const ft =
@@ -231,6 +283,13 @@ export default function Reader() {
               <Settings2 size={18} />
             </button>
           </div>
+
+          {/* Offline save error message */}
+          {offlineError && (
+            <div className="error-message" style={{ marginTop: '1rem' }}>
+              {offlineError}
+            </div>
+          )}
 
           {/* Full text content or abstract */}
           {(fullTextLoading || extracting) && (

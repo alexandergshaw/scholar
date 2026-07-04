@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react'
 import { useFavoritesStore } from '../stores/favoritesStore'
+import { useOfflineStore } from '../stores/offlineStore'
 import ArticleCard from '../components/ArticleCard'
 import PrimarySourceCard from '../components/PrimarySourceCard'
 import './Favorites.css'
@@ -7,8 +8,9 @@ import './Favorites.css'
 export default function Favorites() {
   const favorites = useFavoritesStore(state => state.favorites)
   const primaryFavorites = useFavoritesStore(state => state.primaryFavorites)
+  const savedOffline = useOfflineStore(state => state.saved)
 
-  const hasNoFavorites = favorites.length === 0 && primaryFavorites.length === 0
+  const hasNoFavorites = favorites.length === 0 && primaryFavorites.length === 0 && savedOffline.length === 0
 
   return (
     <div className="page-content">
@@ -26,6 +28,20 @@ export default function Favorites() {
         </div>
       ) : (
         <>
+          {savedOffline.length > 0 && (
+            <>
+              <div className="section-header">
+                <h2>Available offline</h2>
+                <span className="section-count">{savedOffline.length}</span>
+              </div>
+              <div className="articles-list">
+                {savedOffline.map(offline => (
+                  <ArticleCard key={offline.article.id} article={offline.article} />
+                ))}
+              </div>
+            </>
+          )}
+
           {favorites.length > 0 && (
             <>
               <div className="section-header">

@@ -36,6 +36,7 @@
 }
 
 .reader-widgets .favorite-btn,
+.reader-widgets .offline-btn,
 .reader-widgets .controls-toggle {
   background: none;
   border: none;
@@ -51,12 +52,22 @@
 }
 
 .reader-widgets .favorite-btn:active,
+.reader-widgets .offline-btn:active,
 .reader-widgets .controls-toggle:active {
   opacity: 0.7;
 }
 
 .reader-widgets .favorite-btn.active {
   color: var(--color-accent);
+}
+
+.reader-widgets .offline-btn.active {
+  color: var(--color-accent);
+}
+
+.reader-widgets .offline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .reader-content {
