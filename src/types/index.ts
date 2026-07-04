@@ -100,3 +100,18 @@ export interface ReaderSettings {
   lineSpacing: number // 1, 1.5, 2
   theme: Theme
 }
+
+/* Primary & historical sources types */
+export interface PrimarySource {
+  id: string
+  title: string
+  creator?: string
+  date?: string
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America'
+  snippet?: string
+  readUrl: string
+}
+
+export interface PrimarySourcesResponse {
+  results: PrimarySource[]
+}

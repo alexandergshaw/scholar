@@ -1,0 +1,217 @@
+// Server-side aggregator for primary & historical sources
+// Queries three free corpora: Project Gutenberg, Internet Archive, Chronicling America
+// Keep this file free of React/Vite imports so it can run on Node.js only
+
+export interface PrimarySource {
+  id: string
+  title: string
+  creator?: string
+  date?: string
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America'
+  snippet?: string
+  readUrl: string
+}
+
+// Helper to coerce a value to a single string (join arrays)
+function str(v: unknown): string | undefined {
+  if (Array.isArray(v)) {
+    return v.join('; ')
+  }
+  return v ? String(v) : undefined
+}
+
+// Helper to format author lifespan
+function lifeSpan(a: { birth_year?: number; death_year?: number } | undefined): string | undefined {
+  if (!a) return undefined
+  if (a.birth_year || a.death_year) {
+    return `${a.birth_year ?? ''}–${a.death_year ?? ''}`
+  }
+  return undefined
+}
+
+// Gutenberg API: fetch from Gutendex
+async function fetchGutenberg(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://gutendex.com/books/')
+    url.searchParams.append('search', query)
+    url.searchParams.append('page', String(page))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), { signal: controller.signal })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      count?: number
+      results?: Array<{
+        id: number
+        title: string
+        authors?: Array<{ name: string; birth_year?: number; death_year?: number }>
+        subjects?: string[]
+        formats?: Record<string, string>
+      }>
+    }
+
+    if (!data.results) return []
+
+    return data.results
+      .map(b => ({
+        id: `gutenberg:${b.id}`,
+        title: b.title,
+        creator: b.authors?.[0]?.name,
+        date: lifeSpan(b.authors?.[0]),
+        sourceName: 'Project Gutenberg' as const,
+        snippet: (b.subjects || []).slice(0, 3).join('; ') || undefined,
+        readUrl: `https://www.gutenberg.org/ebooks/${b.id}`
+      }))
+  } catch {
+    return []
+  }
+}
+
+// Internet Archive API
+async function fetchInternetArchive(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://archive.org/advancedsearch.php')
+    url.searchParams.append('q', `${query} AND mediatype:texts`)
+    url.searchParams.append('fl[]', 'identifier')
+    url.searchParams.append('fl[]', 'title')
+    url.searchParams.append('fl[]', 'creator')
+    url.searchParams.append('fl[]', 'year')
+    url.searchParams.append('fl[]', 'description')
+    url.searchParams.append('sort[]', 'downloads desc')
+    url.searchParams.append('rows', '10')
+    url.searchParams.append('page', String(page))
+    url.searchParams.append('output', 'json')
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), { signal: controller.signal })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      response?: {
+        numFound?: number
+        docs?: Array<{
+          identifier: string
+          title?: string | string[]
+          creator?: string | string[]
+          year?: number
+          description?: string | string[]
+        }>
+      }
+    }
+
+    if (!data.response?.docs) return []
+
+    return data.response.docs
+      .filter(d => d.identifier)
+      .map(d => ({
+        id: `ia:${d.identifier}`,
+        title: str(d.title) || 'Untitled',
+        creator: str(d.creator),
+        date: d.year ? String(d.year) : undefined,
+        sourceName: 'Internet Archive' as const,
+        snippet: str(d.description)?.slice(0, 240),
+        readUrl: `https://archive.org/details/${d.identifier}`
+      }))
+  } catch {
+    return []
+  }
+}
+
+// Chronicling America API (loc.gov)
+async function fetchChroniclingAmerica(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://www.loc.gov/collections/chronicling-america/')
+    url.searchParams.append('q', query)
+    url.searchParams.append('fo', 'json')
+    url.searchParams.append('c', '10')
+    url.searchParams.append('sp', String(page))
+    url.searchParams.append('at', 'results')
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      results?: Array<{
+        id?: string
+        title?: string
+        date?: string
+        url?: string
+      }>
+    }
+
+    if (!data.results) return []
+
+    return data.results
+      .filter(it => it.url)
+      .map(it => ({
+        id: `chronam:${it.id || it.url}`,
+        title: (it.title || '').replace(/^Image \d+ of /, '').trim(),
+        creator: undefined,
+        date: it.date,
+        sourceName: 'Chronicling America' as const,
+        snippet: undefined,
+        readUrl: it.url!
+      }))
+      .filter(item => item.title)
+  } catch {
+    return []
+  }
+}
+
+// Main aggregator: query all three sources in parallel, merge round-robin
+export async function searchPrimarySources(
+  query: string,
+  page = 1
+): Promise<{ results: PrimarySource[] }> {
+  if (!query || !query.trim()) {
+    return { results: [] }
+  }
+
+  const results = await Promise.allSettled([
+    fetchGutenberg(query, page),
+    fetchInternetArchive(query, page),
+    fetchChroniclingAmerica(query, page)
+  ])
+
+  const sources: PrimarySource[][] = []
+  for (const result of results) {
+    sources.push(result.status === 'fulfilled' ? result.value : [])
+  }
+
+  // Round-robin interleave
+  const merged: PrimarySource[] = []
+  const maxLen = Math.max(...sources.map(s => s.length))
+
+  for (let i = 0; i < maxLen; i++) {
+    for (const source of sources) {
+      if (i < source.length) {
+        merged.push(source[i])
+      }
+    }
+  }
+
+  // Filter out any item missing title or readUrl
+  const filtered = merged.filter(item => item.title && item.readUrl)
+
+  return { results: filtered }
+}

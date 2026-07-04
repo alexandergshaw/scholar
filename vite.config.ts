@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { getFullText } from './server/fulltextCore'
+import { searchPrimarySources } from './server/primarySources'
 
 const fulltextPlugin = {
   name: 'fulltext-proxy',
@@ -27,9 +28,32 @@ const fulltextPlugin = {
   }
 }
 
+const primaryPlugin = {
+  name: 'primary-sources-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/primary', async (req: any, res: any, next: any) => {
+      try {
+        const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+        const q = url.searchParams.get('q') || ''
+        const page = Number(url.searchParams.get('page')) || 1
+
+        const result = await searchPrimarySources(q, page)
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify(result))
+      } catch {
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify({ results: [] }))
+      }
+    })
+  }
+}
+
 export default defineConfig({
   plugins: [
     fulltextPlugin,
+    primaryPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',
