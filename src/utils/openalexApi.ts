@@ -104,6 +104,16 @@ function extractArxivId(work: OpenAlexWork): string | undefined {
 }
 
 export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
+  // Extract top 8 concepts at level >= 1, sorted by score descending
+  const concepts = (work.concepts || [])
+    .filter(c => c.level >= 1)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map(c => ({
+      id: shortIdOf(c.id),
+      name: c.display_name
+    }))
+
   return {
     id: work.id,
     title: work.display_name,
@@ -117,7 +127,8 @@ export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
     abstract: buildAbstractFromInvertedIndex(work.abstract_inverted_index),
     pmcid: extractPmcId(work.ids?.pmcid),
     pmid: extractPmid(work.ids?.pmid),
-    arxivId: extractArxivId(work)
+    arxivId: extractArxivId(work),
+    concepts: concepts.length > 0 ? concepts : undefined
   }
 }
 

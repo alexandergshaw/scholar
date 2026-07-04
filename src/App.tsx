@@ -10,6 +10,7 @@ import Reader from './pages/Reader'
 import PrimaryReader from './pages/PrimaryReader'
 import Favorites from './pages/Favorites'
 import Settings from './pages/Settings'
+import ConceptWeb from './pages/ConceptWeb'
 import './App.css'
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/reader/:articleId" element={<Reader />} />
           <Route path="/read/primary" element={<PrimaryReader />} />
+          <Route path="/web" element={<ConceptWeb />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

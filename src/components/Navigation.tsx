@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, Search, Star, Settings } from 'lucide-react'
+import { Home, Search, Waypoints, Star, Settings } from 'lucide-react'
 import './Navigation.css'
 
 export default function Navigation() {
@@ -25,6 +25,14 @@ export default function Navigation() {
       >
         <Search size={22} className="nav-icon" />
         <span className="nav-label">Search</span>
+      </button>
+      <button
+        className={`nav-item ${isActive('/web') ? 'active' : ''}`}
+        onClick={() => navigate('/web')}
+        aria-label="Web"
+      >
+        <Waypoints size={22} className="nav-icon" />
+        <span className="nav-label">Web</span>
       </button>
       <button
         className={`nav-item ${isActive('/favorites') ? 'active' : ''}`}

@@ -26,6 +26,13 @@ export interface OpenAlexBestOALocation {
   landing_page_url?: string
 }
 
+export interface OpenAlexConcept {
+  id: string
+  display_name: string
+  level: number
+  score: number
+}
+
 export interface OpenAlexWork {
   id: string
   display_name: string
@@ -39,6 +46,7 @@ export interface OpenAlexWork {
   abstract_inverted_index?: Record<string, number[]>
   ids?: { openalex?: string; doi?: string; mag?: string; pmid?: string; pmcid?: string }
   locations?: Array<{ landing_page_url?: string; pdf_url?: string }>
+  concepts?: OpenAlexConcept[]
 }
 
 export interface OpenAlexSearchResponse {
@@ -61,6 +69,11 @@ export type FullTextResult =
   | { available: false }
 
 /* App domain types */
+export interface Concept {
+  id: string
+  name: string
+}
+
 export interface Article {
   id: string
   title: string
@@ -75,6 +88,7 @@ export interface Article {
   pmcid?: string
   pmid?: string
   arxivId?: string
+  concepts?: Concept[]
 }
 
 /* OpenAlex Autocomplete types */
