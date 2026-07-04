@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ'
   snippet?: string
   readUrl: string
 }
@@ -353,6 +353,73 @@ async function fetchTheConversation(query: string, page: number): Promise<Primar
   }
 }
 
+// DOAJ API (Directory of Open Access Journals)
+async function fetchDoaj(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL(`https://doaj.org/api/search/articles/${encodeURIComponent(query)}`)
+    url.searchParams.append('pageSize', '10')
+    url.searchParams.append('page', String(page))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'scholar-app'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      results?: Array<{
+        bibjson?: {
+          title?: string
+          year?: string
+          abstract?: string
+          author?: Array<{ name?: string }>
+          journal?: { title?: string }
+          link?: Array<{ type?: string; url?: string }>
+        }
+      }>
+    }
+
+    if (!data.results) return []
+
+    const results: PrimarySource[] = []
+
+    for (const result of data.results) {
+      const bib = result.bibjson
+      if (!bib || !bib.title) continue
+
+      // Find fulltext link
+      const links = bib.link || []
+      const fulltextLink = links.find(l => l.type === 'fulltext')
+      if (!fulltextLink || !fulltextLink.url) continue
+
+      const ftUrl = fulltextLink.url
+
+      results.push({
+        id: `doaj:${ftUrl}`,
+        title: bib.title,
+        creator: bib.author?.[0]?.name,
+        date: bib.year,
+        sourceName: 'DOAJ' as const,
+        snippet: (bib.abstract || '').replace(/\s+/g, ' ').trim().slice(0, 240) || undefined,
+        readUrl: ftUrl
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -368,7 +435,8 @@ export async function searchPrimarySources(
     fetchChroniclingAmerica(query, page),
     fetchWikipedia(query, page),
     fetchWikisource(query, page),
-    fetchTheConversation(query, page)
+    fetchTheConversation(query, page),
+    fetchDoaj(query, page)
   ])
 
   const sources: PrimarySource[][] = []

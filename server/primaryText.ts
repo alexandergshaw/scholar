@@ -4,6 +4,7 @@
 
 import { parse, HTMLElement } from 'node-html-parser'
 import type { FullTextSection, FullTextResult } from '../src/types'
+import { extractOaFullText } from './oaExtractCore'
 
 // Helper: fetch with timeout
 async function fetchWithTimeout(
@@ -498,6 +499,17 @@ async function getTheConversationText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from DOAJ (using open-access extractor)
+async function getDoajText(id: string): Promise<FullTextResult> {
+  try {
+    const url = id.replace(/^doaj:/, '')
+    if (!url) return { available: false }
+    return await extractOaFullText(url)
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -513,6 +525,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getWikisourceText(id)
     } else if (id.startsWith('conversation:')) {
       return await getTheConversationText(id)
+    } else if (id.startsWith('doaj:')) {
+      return await getDoajText(id)
     } else {
       return { available: false }
     }
