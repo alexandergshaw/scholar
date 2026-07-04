@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Settings2, X } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
@@ -48,7 +49,8 @@ export default function PrimaryReader() {
       <div className="page-content">
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate(-1)}>
-            ← Back
+            <ArrowLeft size={18} />
+            Back
           </button>
         </div>
         <div className="error-message">{error}</div>
@@ -64,7 +66,8 @@ export default function PrimaryReader() {
       {/* Top bar with back button */}
       <div className="reader-header">
         <button className="back-btn" onClick={() => navigate(-1)}>
-          ← Back
+          <ArrowLeft size={18} />
+          Back
         </button>
       </div>
 
@@ -113,8 +116,8 @@ export default function PrimaryReader() {
                 return [title, ft].filter(Boolean).join('\n\n')
               }}
             />
-            <button className="controls-toggle" onClick={() => setShowControls(!showControls)}>
-              ⚙
+            <button className="controls-toggle" onClick={() => setShowControls(!showControls)} title="Settings">
+              <Settings2 size={18} />
             </button>
           </div>
 
@@ -164,8 +167,8 @@ export default function PrimaryReader() {
           <div className="controls-sheet">
             <div className="controls-header">
               <h3>Reading Settings</h3>
-              <button className="close-controls" onClick={() => setShowControls(false)}>
-                ✕
+              <button className="close-controls" onClick={() => setShowControls(false)} aria-label="Close">
+                <X size={20} />
               </button>
             </div>
             <ReaderControls />

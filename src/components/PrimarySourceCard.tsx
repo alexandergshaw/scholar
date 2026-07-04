@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { Star, ExternalLink, BookOpen } from 'lucide-react'
 import { PrimarySource } from '../types'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import './PrimarySourceCard.css'
@@ -43,10 +44,11 @@ export default function PrimarySourceCard({ source }: PrimarySourceCardProps) {
         aria-label={isPrimaryFavorite(source.id) ? 'Remove from favorites' : 'Add to favorites'}
         title={isPrimaryFavorite(source.id) ? 'Saved' : 'Save source'}
       >
-        ★
+        <Star size={18} fill={isPrimaryFavorite(source.id) ? 'currentColor' : 'none'} />
       </button>
       <div className="primary-actions">
         <button className="primary-read-link primary-inline" onClick={handleReadInline}>
+          <BookOpen size={16} />
           Read inline
         </button>
         <a
@@ -56,7 +58,8 @@ export default function PrimarySourceCard({ source }: PrimarySourceCardProps) {
           rel="noopener noreferrer"
           aria-label={`Open ${source.title} in new tab`}
         >
-          Source ↗
+          Source
+          <ExternalLink size={16} />
         </a>
       </div>
     </div>

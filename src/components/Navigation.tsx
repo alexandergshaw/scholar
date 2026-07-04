@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { Home, Search, Star, Settings } from 'lucide-react'
 import './Navigation.css'
 
 export default function Navigation() {
@@ -14,7 +15,7 @@ export default function Navigation() {
         onClick={() => navigate('/')}
         aria-label="Home"
       >
-        <span className="nav-icon">⌂</span>
+        <Home size={22} className="nav-icon" />
         <span className="nav-label">Home</span>
       </button>
       <button
@@ -22,7 +23,7 @@ export default function Navigation() {
         onClick={() => navigate('/search')}
         aria-label="Search"
       >
-        <span className="nav-icon">🔍</span>
+        <Search size={22} className="nav-icon" />
         <span className="nav-label">Search</span>
       </button>
       <button
@@ -30,7 +31,7 @@ export default function Navigation() {
         onClick={() => navigate('/favorites')}
         aria-label="Favorites"
       >
-        <span className="nav-icon">★</span>
+        <Star size={22} className="nav-icon" />
         <span className="nav-label">Favorites</span>
       </button>
       <button
@@ -38,7 +39,7 @@ export default function Navigation() {
         onClick={() => navigate('/settings')}
         aria-label="Settings"
       >
-        <span className="nav-icon">⚙</span>
+        <Settings size={22} className="nav-icon" />
         <span className="nav-label">Settings</span>
       </button>
     </nav>

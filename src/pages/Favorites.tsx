@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import ArticleCard from '../components/ArticleCard'
 import PrimarySourceCard from '../components/PrimarySourceCard'
@@ -17,7 +18,9 @@ export default function Favorites() {
 
       {hasNoFavorites ? (
         <div className="empty-state">
-          <div className="empty-state-icon">★</div>
+          <div className="empty-state-icon">
+            <Star size={40} />
+          </div>
           <h2>No saved articles or sources yet</h2>
           <p>Articles and sources you save will appear here. You can save them from search results or while reading.</p>
         </div>

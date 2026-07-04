@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { askAboutText } from '../utils/askApi'
 import './AskBox.css'
 
@@ -44,7 +45,8 @@ export default function AskBox({ getContext, compact = false }: AskBoxProps) {
         onClick={() => setIsOpen(!isOpen)}
         title="Ask about this document"
       >
-        Ask about this ✨
+        <Sparkles size={16} />
+        Ask about this
       </button>
 
       {isOpen && (

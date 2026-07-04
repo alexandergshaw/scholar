@@ -167,6 +167,7 @@
   min-width: 44px;
   min-height: 44px;
   display: flex;
+  gap: 0.5rem;
   align-items: center;
   justify-content: center;
   white-space: nowrap;

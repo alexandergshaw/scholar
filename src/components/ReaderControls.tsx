@@ -1,3 +1,4 @@
+import { Sun, BookOpen, Moon } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import './ReaderControls.css'
 
@@ -81,21 +82,21 @@ export default function ReaderControls() {
             onClick={() => setTheme('light')}
             title="Light"
           >
-            ☀
+            <Sun size={18} />
           </button>
           <button
             className={`theme-btn ${theme === 'sepia' ? 'active' : ''}`}
             onClick={() => setTheme('sepia')}
             title="Sepia"
           >
-            📄
+            <BookOpen size={18} />
           </button>
           <button
             className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
             onClick={() => setTheme('dark')}
             title="Dark"
           >
-            🌙
+            <Moon size={18} />
           </button>
         </div>
       </div>

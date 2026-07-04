@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Search as SearchIcon, SearchX } from 'lucide-react'
 import { searchWorks } from '../utils/openalexApi'
 import { searchPrimary } from '../utils/primaryApi'
 import { Article, PrimarySource } from '../types'
@@ -261,7 +262,9 @@ export default function Search() {
 
       {!hasSearched && (
         <div className="empty-state">
-          <div className="empty-state-icon">🔍</div>
+          <div className="empty-state-icon">
+            <SearchIcon size={40} />
+          </div>
           <h2>Start searching</h2>
           <p>Enter a query, author name, or topic to find articles</p>
         </div>
@@ -271,7 +274,9 @@ export default function Search() {
         !loading &&
         (primaryMode ? primarySources.length === 0 : articles.length === 0) && (
           <div className="empty-state">
-            <div className="empty-state-icon">📭</div>
+            <div className="empty-state-icon">
+              <SearchX size={40} />
+            </div>
             <h2>No results found</h2>
             <p>Try different search terms or adjust your filters</p>
           </div>

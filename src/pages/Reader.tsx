@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Star, Settings2, X } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useRecentsStore } from '../stores/recentsStore'
@@ -92,7 +93,8 @@ export default function Reader() {
       <div className="page-content">
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate(-1)}>
-            ← Back
+            <ArrowLeft size={18} />
+            Back
           </button>
         </div>
         <div className="error-message">{error}</div>
@@ -105,7 +107,8 @@ export default function Reader() {
       <div className="page-content">
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate(-1)}>
-            ← Back
+            <ArrowLeft size={18} />
+            Back
           </button>
         </div>
         <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>
@@ -121,7 +124,8 @@ export default function Reader() {
       {/* Top bar with back button */}
       <div className="reader-header">
         <button className="back-btn" onClick={() => navigate(-1)}>
-          ← Back
+          <ArrowLeft size={18} />
+          Back
         </button>
       </div>
 
@@ -186,7 +190,7 @@ export default function Reader() {
               onClick={() => toggleFavorite(article)}
               title={isFavorite(article.id) ? 'Saved' : 'Save article'}
             >
-              ★
+              <Star size={18} fill={isFavorite(article.id) ? 'currentColor' : 'none'} />
             </button>
             <ListenBar
               getText={() => {
@@ -210,8 +214,8 @@ export default function Reader() {
                 return [article.title, ft].filter(Boolean).join('\n\n')
               }}
             />
-            <button className="controls-toggle" onClick={() => setShowControls(!showControls)}>
-              ⚙
+            <button className="controls-toggle" onClick={() => setShowControls(!showControls)} title="Settings">
+              <Settings2 size={18} />
             </button>
           </div>
 
@@ -278,8 +282,8 @@ export default function Reader() {
           <div className="controls-sheet">
             <div className="controls-header">
               <h3>Reading Settings</h3>
-              <button className="close-controls" onClick={() => setShowControls(false)}>
-                ✕
+              <button className="close-controls" onClick={() => setShowControls(false)} aria-label="Close">
+                <X size={20} />
               </button>
             </div>
             <ReaderControls />

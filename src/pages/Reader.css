@@ -20,13 +20,15 @@
   background: none;
   border: none;
   color: var(--color-accent);
-  font-size: 1rem;
   cursor: pointer;
-  padding: 0.5rem;
+  padding: 0.5rem 0.5rem;
   min-width: 44px;
   min-height: 44px;
   display: flex;
+  gap: 0.5rem;
   align-items: center;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .back-btn:active {
@@ -38,7 +40,6 @@
   background: none;
   border: none;
   color: var(--color-text-secondary);
-  font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem;
   min-width: 44px;

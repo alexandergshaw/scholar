@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal } from 'lucide-react'
 import { useTts } from '../hooks/useTts'
 import { useCloudTts, CURATED_CLOUD_VOICES } from '../hooks/useCloudTts'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
@@ -97,7 +98,8 @@ export default function ListenBar({ getText }: ListenBarProps) {
       <div className="listen-controls">
         {activeLoading ? (
           <button className="listen-button" disabled title="Preparing audio...">
-            ⏳ Preparing...
+            <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+            Preparing...
           </button>
         ) : !activeSpeaking ? (
           <button
@@ -105,7 +107,8 @@ export default function ListenBar({ getText }: ListenBarProps) {
             onClick={handleListen}
             title="Read aloud"
           >
-            🔊 Listen
+            <Volume2 size={18} />
+            Listen
           </button>
         ) : (
           <>
@@ -114,14 +117,16 @@ export default function ListenBar({ getText }: ListenBarProps) {
               onClick={togglePlayPause}
               title={activePaused ? 'Resume' : 'Pause'}
             >
-              {activePaused ? '▶' : '⏸'} {activePaused ? 'Resume' : 'Pause'}
+              {activePaused ? <Play size={18} /> : <Pause size={18} />}
+              {activePaused ? 'Resume' : 'Pause'}
             </button>
             <button
               className="listen-button stop"
               onClick={handleStop}
               title="Stop"
             >
-              ⏹ Stop
+              <Square size={18} />
+              Stop
             </button>
           </>
         )}
@@ -132,7 +137,7 @@ export default function ListenBar({ getText }: ListenBarProps) {
         onClick={() => setShowSettings(!showSettings)}
         title="Voice settings"
       >
-        ⚙
+        <SlidersHorizontal size={18} />
       </button>
 
       {showSettings && (

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { Star } from 'lucide-react'
 import { Article } from '../types'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { shortIdOf } from '../utils/openalexApi'
@@ -54,7 +55,7 @@ export default function ArticleCard({ article, compact = false }: ArticleCardPro
         aria-label={isFavorite(article.id) ? 'Remove from favorites' : 'Add to favorites'}
         title={isFavorite(article.id) ? 'Saved' : 'Save article'}
       >
-        ★
+        <Star size={18} fill={isFavorite(article.id) ? 'currentColor' : 'none'} />
       </button>
     </div>
   )
