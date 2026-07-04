@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search as SearchIcon, SearchX } from 'lucide-react'
 import { searchWorks } from '../utils/openalexApi'
@@ -6,6 +6,7 @@ import { searchPrimary } from '../utils/primaryApi'
 import { Article, PrimarySource } from '../types'
 import ArticleCard from '../components/ArticleCard'
 import PrimarySourceCard from '../components/PrimarySourceCard'
+import { useSearchStore } from '../stores/searchStore'
 import './Search.css'
 
 const ALL_SOURCE_NAMES = [
@@ -53,29 +54,32 @@ const SOURCE_GROUPS = [
 
 export default function Search() {
   const [searchParams] = useSearchParams()
-  const [query, setQuery] = useState(searchParams.get('query') || '')
-  const [author, setAuthor] = useState(searchParams.get('author') || '')
-  const [authorId] = useState(searchParams.get('authorId') || '')
-  const [topic, setTopic] = useState(searchParams.get('topic') || '')
-  const [yearFrom, setYearFrom] = useState(searchParams.get('yearFrom') || '')
-  const [yearTo, setYearTo] = useState(searchParams.get('yearTo') || '')
-  const [openAccessOnly, setOpenAccessOnly] = useState(searchParams.get('openAccessOnly') === 'true')
-  const [fullTextOnly, setFullTextOnly] = useState(searchParams.get('fullText') === 'true')
-  const [readableInlineOnly, setReadableInlineOnly] = useState(searchParams.get('readableInline') === 'true')
-  const [sort, setSort] = useState<'relevance' | 'newest' | 'oldest' | 'citations'>('relevance')
-  const [docType, setDocType] = useState('any')
-  const [primaryMode, setPrimaryMode] = useState(searchParams.get('primary') === 'true')
-  const [enabledSources, setEnabledSources] = useState<Set<string>>(new Set(ALL_SOURCE_NAMES))
+  const snap = useSearchStore.getState()
+  const snapshotRestoreRef = useRef(snap.hasSnapshot)
 
-  const [articles, setArticles] = useState<Article[]>([])
-  const [primarySources, setPrimarySources] = useState<PrimarySource[]>([])
+  const [query, setQuery] = useState(snap.hasSnapshot ? snap.query : (searchParams.get('query') || ''))
+  const [author, setAuthor] = useState(snap.hasSnapshot ? snap.author : (searchParams.get('author') || ''))
+  const [authorId] = useState(searchParams.get('authorId') || '')
+  const [topic, setTopic] = useState(snap.hasSnapshot ? snap.topic : (searchParams.get('topic') || ''))
+  const [yearFrom, setYearFrom] = useState(snap.hasSnapshot ? snap.yearFrom : (searchParams.get('yearFrom') || ''))
+  const [yearTo, setYearTo] = useState(snap.hasSnapshot ? snap.yearTo : (searchParams.get('yearTo') || ''))
+  const [openAccessOnly, setOpenAccessOnly] = useState(snap.hasSnapshot ? snap.openAccessOnly : (searchParams.get('openAccessOnly') === 'true'))
+  const [fullTextOnly, setFullTextOnly] = useState(snap.hasSnapshot ? snap.fullTextOnly : (searchParams.get('fullText') === 'true'))
+  const [readableInlineOnly, setReadableInlineOnly] = useState(snap.hasSnapshot ? snap.readableInlineOnly : (searchParams.get('readableInline') === 'true'))
+  const [sort, setSort] = useState<'relevance' | 'newest' | 'oldest' | 'citations'>(snap.hasSnapshot ? snap.sort : 'relevance')
+  const [docType, setDocType] = useState(snap.hasSnapshot ? snap.docType : 'any')
+  const [primaryMode, setPrimaryMode] = useState(snap.hasSnapshot ? snap.primaryMode : (searchParams.get('primary') === 'true'))
+  const [enabledSources, setEnabledSources] = useState<Set<string>>(snap.hasSnapshot ? new Set(snap.enabledSources) : new Set(ALL_SOURCE_NAMES))
+
+  const [articles, setArticles] = useState<Article[]>(snap.hasSnapshot ? snap.articles : [])
+  const [primarySources, setPrimarySources] = useState<PrimarySource[]>(snap.hasSnapshot ? snap.primarySources : [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [primaryPage, setPrimaryPage] = useState(1)
-  const [primaryHasMore, setPrimaryHasMore] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
+  const [page, setPage] = useState(snap.hasSnapshot ? snap.page : 1)
+  const [total, setTotal] = useState(snap.hasSnapshot ? snap.total : 0)
+  const [primaryPage, setPrimaryPage] = useState(snap.hasSnapshot ? snap.primaryPage : 1)
+  const [primaryHasMore, setPrimaryHasMore] = useState(snap.hasSnapshot ? snap.primaryHasMore : false)
+  const [hasSearched, setHasSearched] = useState(snap.hasSnapshot ? snap.hasSearched : false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
 
@@ -166,10 +170,64 @@ export default function Search() {
   }
 
   useEffect(() => {
-    // Auto-run search if there's a query in the URL
-    if (query) {
+    // Auto-run search if there's a query in the URL, but skip if restoring from snapshot
+    // (snapshot results are already restored and don't need refetch)
+    if (!snapshotRestoreRef.current && query) {
       performSearch(1)
     }
+  }, [])
+
+  // Save snapshot whenever state changes
+  useEffect(() => {
+    useSearchStore.getState().saveSnapshot({
+      query,
+      author,
+      topic,
+      yearFrom,
+      yearTo,
+      openAccessOnly,
+      fullTextOnly,
+      readableInlineOnly,
+      sort,
+      docType,
+      primaryMode,
+      enabledSources: Array.from(enabledSources),
+      articles,
+      primarySources,
+      page,
+      total,
+      primaryPage,
+      primaryHasMore,
+      hasSearched
+      // scrollY is written separately by the scroll listener below; don't
+      // include it here or state-change saves would clobber it with 0.
+    })
+  }, [
+    query, author, topic, yearFrom, yearTo, openAccessOnly, fullTextOnly, readableInlineOnly,
+    sort, docType, primaryMode, Array.from(enabledSources).sort().join(','),
+    articles, primarySources, page, total, primaryPage, primaryHasMore, hasSearched
+  ])
+
+  // Restore scroll position on mount. The scroll container is the
+  // `.page-content` div (the window itself does not scroll in this layout).
+  useLayoutEffect(() => {
+    if (snapshotRestoreRef.current && snap.scrollY > 0) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector('.page-content')
+        if (el) el.scrollTop = snap.scrollY
+      })
+    }
+  }, [])
+
+  // Save scroll position continuously from the `.page-content` scroll container.
+  useEffect(() => {
+    const el = document.querySelector('.page-content')
+    if (!el) return
+    const handleScroll = () => {
+      useSearchStore.getState().setScrollY((el as HTMLElement).scrollTop)
+    }
+    el.addEventListener('scroll', handleScroll)
+    return () => el.removeEventListener('scroll', handleScroll)
   }, [])
 
   useEffect(() => {
