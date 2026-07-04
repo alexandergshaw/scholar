@@ -124,6 +124,18 @@ export function useCloudTts(): UseCloudTtsReturn {
           })
         })
 
+        if (!response.ok) {
+          let bodyText = ''
+          try {
+            bodyText = await response.text()
+          } catch {}
+          setError(`Server error ${response.status}${bodyText ? ': ' + bodyText.slice(0, 300) : ''}`)
+          setSpeaking(false)
+          setPaused(false)
+          setLoading(false)
+          return
+        }
+
         const result = await response.json()
 
         if (!result.configured) {
@@ -149,7 +161,7 @@ export function useCloudTts(): UseCloudTtsReturn {
           setSpeaking(true)
         }
       } catch (err) {
-        setError('Failed to fetch audio.')
+        setError('Request failed: ' + (err instanceof Error ? err.message : String(err)))
         setSpeaking(false)
         setPaused(false)
         setLoading(false)

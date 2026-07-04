@@ -20,8 +20,8 @@ export default async function handler(req: any, res: any) {
 
     res.setHeader('Content-Type', 'application/json')
     res.status(200).json(result)
-  } catch {
+  } catch (e) {
     res.setHeader('Content-Type', 'application/json')
-    res.status(200).json({ configured: true, error: 'TTS request failed.' })
+    res.status(200).json({ configured: true, error: 'TTS handler error: ' + (e instanceof Error ? e.message : String(e)) })
   }
 }

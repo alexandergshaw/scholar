@@ -229,6 +229,13 @@
   background: #2a7a8f;
 }
 
+.ask-error {
+  word-break: break-word;
+  white-space: normal;
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
 /* Mobile-first: ensure touch targets and proper stacking */
 @media (max-width: 600px) {
   .listen-bar {

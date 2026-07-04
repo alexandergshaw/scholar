@@ -167,10 +167,10 @@ const ttsPlugin = {
         res.setHeader('Content-Type', 'application/json')
         res.statusCode = 200
         res.end(JSON.stringify(result))
-      } catch {
+      } catch (e) {
         res.setHeader('Content-Type', 'application/json')
         res.statusCode = 200
-        res.end(JSON.stringify({ configured: true, error: 'TTS request failed.' }))
+        res.end(JSON.stringify({ configured: true, error: 'TTS dev error: ' + (e instanceof Error ? e.message : String(e)) }))
       }
     })
   }

@@ -42,6 +42,13 @@ export async function synthesize(params: {
   // Clamp pitch to [-20, 20]
   const pitch = Math.min(Math.max(params.pitch ?? 0, -20), 20)
 
+  // Studio voices don't support pitch parameter
+  const isStudio = (params.voice || '').includes('Studio')
+  const audioConfig: any = { audioEncoding: 'MP3', speakingRate }
+  if (!isStudio) {
+    audioConfig.pitch = pitch
+  }
+
   try {
     const response = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
@@ -56,25 +63,29 @@ export async function synthesize(params: {
             languageCode: params.languageCode || 'en-US',
             name: params.voice
           },
-          audioConfig: {
-            audioEncoding: 'MP3',
-            speakingRate,
-            pitch
-          }
+          audioConfig
         }),
         signal: AbortSignal.timeout(30000)
       }
     )
 
     if (!response.ok) {
-      let errorMessage = `TTS request failed (${response.status})`
+      let errorMessage = `Google TTS ${response.status}`
       try {
-        const errorData = await response.json()
-        if (errorData.error?.message) {
-          errorMessage = `TTS request failed: ${errorData.error.message}`
+        const raw = await response.text()
+        let gErr: any
+        try {
+          gErr = JSON.parse(raw)?.error
+        } catch {
+          // Not JSON, use raw text
+        }
+        if (gErr?.message) {
+          errorMessage = `Google TTS ${response.status}${gErr.status ? ' ' + gErr.status : ''}: ${gErr.message}`
+        } else if (raw) {
+          errorMessage = `Google TTS ${response.status}: ${raw.slice(0, 300)}`
         }
       } catch {
-        // Continue with status-only message
+        // Keep status-only message
       }
       return {
         configured: true,
@@ -96,10 +107,10 @@ export async function synthesize(params: {
       configured: true,
       error: 'No audio returned.'
     }
-  } catch {
+  } catch (e) {
     return {
       configured: true,
-      error: 'TTS request failed.'
+      error: 'TTS proxy error: ' + (e instanceof Error ? e.message : String(e))
     }
   }
 }
