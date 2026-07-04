@@ -210,6 +210,21 @@
   color: #ec4899;
 }
 
+.source-semantic-scholar {
+  background-color: rgba(67, 56, 202, 0.12);
+  color: #4338ca;
+}
+
+.theme-dark .source-semantic-scholar {
+  background-color: rgba(129, 115, 248, 0.15);
+  color: #8173f8;
+}
+
+.theme-sepia .source-semantic-scholar {
+  background-color: rgba(67, 56, 202, 0.12);
+  color: #4338ca;
+}
+
 .primary-snippet {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

@@ -659,6 +659,19 @@ async function getPreprintText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from Semantic Scholar (using open-access extractor for PDFs, discovery-only for S2 pages)
+async function getSemanticScholarText(id: string): Promise<FullTextResult> {
+  try {
+    const url = id.replace(/^s2:/, '')
+    if (!url) return { available: false }
+    // Only attempt extraction on actual PDF URLs; S2 web pages are discovery-only
+    if (url.includes('semanticscholar.org')) return { available: false }
+    return await extractOaFullText(url)
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -682,6 +695,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getStandardEbooksText(id)
     } else if (id.startsWith('preprint:')) {
       return await getPreprintText(id)
+    } else if (id.startsWith('s2:')) {
+      return await getSemanticScholarText(id)
     } else {
       return { available: false }
     }

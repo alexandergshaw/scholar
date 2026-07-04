@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar'
   snippet?: string
   readUrl: string
 }
@@ -629,6 +629,71 @@ async function fetchPreprints(query: string, page: number): Promise<PrimarySourc
   }
 }
 
+// Semantic Scholar API
+async function fetchSemanticScholar(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://api.semanticscholar.org/graph/v1/paper/search')
+    url.searchParams.append('query', query)
+    url.searchParams.append('offset', String((page - 1) * 10))
+    url.searchParams.append('limit', '10')
+    url.searchParams.append('fields', 'title,year,authors,abstract,openAccessPdf,tldr')
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const headers: Record<string, string> = { 'User-Agent': 'scholar-app' }
+    const s2Key = process.env.SEMANTIC_SCHOLAR_API_KEY
+    if (s2Key) headers['x-api-key'] = s2Key
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      data?: Array<{
+        paperId: string
+        title?: string
+        year?: number
+        authors?: Array<{ name?: string }>
+        abstract?: string
+        openAccessPdf?: { url?: string } | null
+        tldr?: { text?: string } | null
+      }>
+    }
+
+    if (!data.data) return []
+
+    const results: PrimarySource[] = []
+
+    for (const result of data.data) {
+      if (!result.title) continue
+
+      const oaUrl = result.openAccessPdf?.url
+      const readUrl = oaUrl || (`https://www.semanticscholar.org/paper/${result.paperId}`)
+
+      results.push({
+        id: `s2:${oaUrl || readUrl}`,
+        title: result.title,
+        creator: result.authors?.[0]?.name,
+        date: result.year != null ? String(result.year) : undefined,
+        sourceName: 'Semantic Scholar' as const,
+        snippet: (result.tldr?.text || result.abstract || '').replace(/\s+/g, ' ').trim().slice(0, 240) || undefined,
+        readUrl
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -648,7 +713,8 @@ export async function searchPrimarySources(
     fetchDoaj(query, page),
     fetchOapen(query, page),
     fetchStandardEbooks(query, page),
-    fetchPreprints(query, page)
+    fetchPreprints(query, page),
+    fetchSemanticScholar(query, page)
   ])
 
   const sources: PrimarySource[][] = []

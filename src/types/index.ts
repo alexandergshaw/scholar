@@ -121,7 +121,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar'
   snippet?: string
   readUrl: string
 }
