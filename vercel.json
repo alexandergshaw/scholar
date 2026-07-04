@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/*.ts": {
+      "includeFiles": "node_modules/node-html-parser/**"
+    }
+  },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
