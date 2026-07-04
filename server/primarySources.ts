@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar' | 'CORE'
   snippet?: string
   readUrl: string
 }
@@ -694,6 +694,69 @@ async function fetchSemanticScholar(query: string, page: number): Promise<Primar
   }
 }
 
+// CORE API (core.ac.uk — largest open-access aggregator)
+async function fetchCore(query: string, page: number): Promise<PrimarySource[]> {
+  const key = process.env.CORE_API_KEY
+  if (!key) return []
+
+  try {
+    const url = new URL('https://api.core.ac.uk/v3/search/works')
+    url.searchParams.append('q', query)
+    url.searchParams.append('limit', '10')
+    url.searchParams.append('offset', String((page - 1) * 10))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'User-Agent': 'scholar-app'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      results?: Array<{
+        id: number | string
+        title?: string
+        authors?: Array<{ name?: string }>
+        yearPublished?: number
+        abstract?: string
+        downloadUrl?: string
+        doi?: string
+      }>
+    }
+
+    if (!data.results) return []
+
+    const results: PrimarySource[] = []
+
+    for (const result of data.results) {
+      if (!result.title) continue
+
+      results.push({
+        id: `core:${result.id}`,
+        title: result.title,
+        creator: result.authors?.[0]?.name,
+        date: result.yearPublished != null ? String(result.yearPublished) : undefined,
+        sourceName: 'CORE' as const,
+        snippet: (result.abstract || '').replace(/\s+/g, ' ').trim().slice(0, 240) || undefined,
+        readUrl: result.downloadUrl || `https://core.ac.uk/works/${result.id}`
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -714,7 +777,8 @@ export async function searchPrimarySources(
     fetchOapen(query, page),
     fetchStandardEbooks(query, page),
     fetchPreprints(query, page),
-    fetchSemanticScholar(query, page)
+    fetchSemanticScholar(query, page),
+    fetchCore(query, page)
   ])
 
   const sources: PrimarySource[][] = []

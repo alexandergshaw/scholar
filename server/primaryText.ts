@@ -672,6 +672,58 @@ async function getSemanticScholarText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from CORE (core.ac.uk)
+async function getCoreText(id: string): Promise<FullTextResult> {
+  const key = process.env.CORE_API_KEY
+  if (!key) return { available: false }
+
+  try {
+    const coreId = id.replace(/^core:/, '')
+    if (!coreId) return { available: false }
+
+    const response = await fetchWithTimeout(
+      `https://api.core.ac.uk/v3/works/${coreId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'User-Agent': 'scholar-app'
+        }
+      }
+    )
+
+    if (!response.ok) {
+      return { available: false }
+    }
+
+    const data = await response.json() as {
+      fullText?: string
+      downloadUrl?: string
+    }
+
+    // First try the stored full text
+    if (data.fullText && typeof data.fullText === 'string' && data.fullText.trim().length > 0) {
+      const sections = textToSections(data.fullText)
+      if (sections.length > 0) {
+        return {
+          available: true,
+          source: 'CORE',
+          sections
+        }
+      }
+    }
+
+    // Fallback to extracting from downloadUrl
+    if (data.downloadUrl) {
+      const r = await extractOaFullText(data.downloadUrl)
+      if (r.available) return r
+    }
+
+    return { available: false }
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -697,6 +749,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getPreprintText(id)
     } else if (id.startsWith('s2:')) {
       return await getSemanticScholarText(id)
+    } else if (id.startsWith('core:')) {
+      return await getCoreText(id)
     } else {
       return { available: false }
     }
