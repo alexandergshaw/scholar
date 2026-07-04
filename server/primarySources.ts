@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints'
   snippet?: string
   readUrl: string
 }
@@ -566,6 +566,69 @@ async function fetchStandardEbooks(query: string, page: number): Promise<Primary
   }
 }
 
+// Europe PMC Preprints API (bioRxiv, medRxiv, other preprints)
+async function fetchPreprints(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://www.ebi.ac.uk/europepmc/webservices/rest/search')
+    url.searchParams.append('query', query + ' AND SRC:PPR')
+    url.searchParams.append('format', 'json')
+    url.searchParams.append('resultType', 'core')
+    url.searchParams.append('pageSize', '10')
+    url.searchParams.append('page', String(page))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'scholar-app'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      resultList?: {
+        result?: Array<{
+          title?: string
+          authorString?: string
+          doi?: string
+          pubYear?: string
+          firstPublicationDate?: string
+          abstractText?: string
+        }>
+      }
+    }
+
+    if (!data.resultList?.result) return []
+
+    const results: PrimarySource[] = []
+
+    for (const result of data.resultList.result) {
+      // Only include results with a DOI
+      if (!result.doi || !result.title) continue
+
+      results.push({
+        id: 'preprint:' + result.doi,
+        title: result.title,
+        creator: result.authorString,
+        date: result.pubYear,
+        sourceName: 'Preprints' as const,
+        snippet: (result.abstractText || '').replace(/\s+/g, ' ').trim().slice(0, 240) || undefined,
+        readUrl: 'https://doi.org/' + result.doi
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -584,7 +647,8 @@ export async function searchPrimarySources(
     fetchTheConversation(query, page),
     fetchDoaj(query, page),
     fetchOapen(query, page),
-    fetchStandardEbooks(query, page)
+    fetchStandardEbooks(query, page),
+    fetchPreprints(query, page)
   ])
 
   const sources: PrimarySource[][] = []

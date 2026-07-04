@@ -5,6 +5,7 @@
 import { parse, HTMLElement } from 'node-html-parser'
 import type { FullTextSection, FullTextResult } from '../src/types'
 import { extractOaFullText } from './oaExtractCore'
+import { getUnpaywallFreeUrl } from './fulltextCore'
 
 // Helper: fetch with timeout
 async function fetchWithTimeout(
@@ -637,6 +638,27 @@ async function getStandardEbooksText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from Preprints (bioRxiv, medRxiv, etc. via Europe PMC)
+async function getPreprintText(id: string): Promise<FullTextResult> {
+  try {
+    const doi = id.replace(/^preprint:/, '')
+    if (!doi) return { available: false }
+
+    // First try Unpaywall for a free PDF
+    const freeUrl = await getUnpaywallFreeUrl(doi)
+    if (freeUrl) {
+      const r = await extractOaFullText(freeUrl)
+      if (r.available) return r
+    }
+
+    // Fallback: try the DOI directly (strip any URL prefix)
+    const cleanDoi = doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '')
+    return await extractOaFullText('https://doi.org/' + cleanDoi)
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -658,6 +680,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getOapenText(id)
     } else if (id.startsWith('standardebooks:')) {
       return await getStandardEbooksText(id)
+    } else if (id.startsWith('preprint:')) {
+      return await getPreprintText(id)
     } else {
       return { available: false }
     }

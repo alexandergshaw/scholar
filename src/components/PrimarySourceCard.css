@@ -195,6 +195,21 @@
   color: #3b82f6;
 }
 
+.source-preprints {
+  background-color: rgba(236, 72, 153, 0.12);
+  color: #ec4899;
+}
+
+.theme-dark .source-preprints {
+  background-color: rgba(244, 114, 182, 0.15);
+  color: #f472b6;
+}
+
+.theme-sepia .source-preprints {
+  background-color: rgba(236, 72, 153, 0.12);
+  color: #ec4899;
+}
+
 .primary-snippet {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

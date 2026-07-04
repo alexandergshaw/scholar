@@ -477,7 +477,7 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
 }
 
 // Fetch a free-to-read link from Unpaywall
-async function getUnpaywallFreeUrl(doi?: string): Promise<string | null> {
+export async function getUnpaywallFreeUrl(doi?: string): Promise<string | null> {
   if (!doi) return null
 
   const email = process.env.UNPAYWALL_EMAIL
