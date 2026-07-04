@@ -2,7 +2,14 @@
 // This file is imported by both the Vite dev middleware and serverless functions
 // Keep it free of React/Vite imports so it can run on Node.js only
 
-import { parse, HTMLElement } from 'node-html-parser'
+// Default-import the CJS module and read `parse` off it. A static named import
+// (`import { parse, HTMLElement } from 'node-html-parser'`) crashes Vercel's ESM
+// serverless runtime because it can't resolve the `HTMLElement` named export
+// from a CommonJS module (FUNCTION_INVOCATION_FAILED). HTMLElement is only used
+// as a type, so import it type-only (erased at runtime).
+import htmlParser from 'node-html-parser'
+import type { HTMLElement } from 'node-html-parser'
+const { parse } = htmlParser
 
 export interface FullTextSection {
   heading: string | null

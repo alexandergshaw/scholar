@@ -2,7 +2,11 @@
 // This file is imported by both the Vite dev middleware and serverless functions
 // Keep it free of React/Vite imports so it can run on Node.js only
 
-import { parse, HTMLElement } from 'node-html-parser'
+// Default-import the CJS module (see note in fulltextCore.ts): a named import of
+// `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
+import htmlParser from 'node-html-parser'
+import type { HTMLElement } from 'node-html-parser'
+const { parse } = htmlParser
 import { extractText, getDocumentProxy } from 'unpdf'
 
 export interface FullTextSection {
