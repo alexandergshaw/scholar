@@ -3,7 +3,7 @@
 // This file is imported by both the Vite dev middleware and serverless functions.
 // Keep it free of React/Vite imports so it can run on Node.js only.
 
-import { isSafePublicUrl } from './oaExtractCore'
+import { isSafePublicUrl } from './oaExtractCore.js'
 
 export type ProxyResult =
   | { ok: true; contentType: string; body: Uint8Array }

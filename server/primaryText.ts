@@ -4,8 +4,8 @@
 
 import { parse, HTMLElement } from 'node-html-parser'
 import type { FullTextSection, FullTextResult } from '../src/types'
-import { extractOaFullText } from './oaExtractCore'
-import { getUnpaywallFreeUrl } from './fulltextCore'
+import { extractOaFullText } from './oaExtractCore.js'
+import { getUnpaywallFreeUrl } from './fulltextCore.js'
 
 // Helper: fetch with timeout
 async function fetchWithTimeout(
