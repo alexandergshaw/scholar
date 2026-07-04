@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation'
   snippet?: string
   readUrl: string
 }
@@ -294,6 +294,65 @@ async function fetchWikisource(query: string, page: number): Promise<PrimarySour
   }
 }
 
+// The Conversation API
+async function fetchTheConversation(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://theconversation.com/us/search')
+    url.searchParams.append('q', query)
+    url.searchParams.append('page', String(page))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (scholar-app)'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const html = await response.text()
+    const { parse } = await import('node-html-parser')
+    const root = parse(html)
+
+    // Find all anchors and filter by href pattern
+    const anchors = root.querySelectorAll('a')
+    const results: PrimarySource[] = []
+    const seenHrefs = new Set<string>()
+
+    for (const anchor of anchors) {
+      const href = anchor.getAttribute('href')
+      if (!href || !href.match(/^\/[a-z0-9-]+-\d{4,7}$/)) continue
+      if (seenHrefs.has(href)) continue
+
+      const title = anchor.text.trim()
+      if (title.length <= 10) continue
+
+      seenHrefs.add(href)
+      const slug = href.slice(1)
+
+      results.push({
+        id: `conversation:${slug}`,
+        title,
+        creator: undefined,
+        date: undefined,
+        sourceName: 'The Conversation' as const,
+        snippet: undefined,
+        readUrl: `https://theconversation.com${href}`
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -308,7 +367,8 @@ export async function searchPrimarySources(
     fetchInternetArchive(query, page),
     fetchChroniclingAmerica(query, page),
     fetchWikipedia(query, page),
-    fetchWikisource(query, page)
+    fetchWikisource(query, page),
+    fetchTheConversation(query, page)
   ])
 
   const sources: PrimarySource[][] = []

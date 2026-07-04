@@ -135,6 +135,21 @@
   color: #a682c8;
 }
 
+.source-the-conversation {
+  background-color: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
+.theme-dark .source-the-conversation {
+  background-color: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.theme-sepia .source-the-conversation {
+  background-color: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
 .primary-snippet {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

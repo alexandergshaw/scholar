@@ -397,6 +397,107 @@ async function getWikisourceText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from The Conversation
+async function getTheConversationText(id: string): Promise<FullTextResult> {
+  try {
+    const slug = id.replace(/^conversation:/, '')
+    const url = `https://theconversation.com/${slug}`
+
+    const response = await fetchWithTimeout(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (scholar-app)'
+      }
+    })
+
+    if (!response.ok) {
+      return { available: false }
+    }
+
+    const html = await response.text()
+    const root = parse(html)
+
+    // Find the article body
+    const body = root.querySelector('[itemprop="articleBody"]') || root.querySelector('.content-body')
+    if (!body) {
+      return { available: false }
+    }
+
+    // Remove cruft
+    body
+      .querySelectorAll('figure, script, style, aside, .inline-promos, .ad, .newsletter')
+      .forEach(el => el.remove())
+
+    const sections: FullTextSection[] = []
+    const seen = new Set<string>()
+    let currentSection: FullTextSection | null = null
+
+    function pushParagraph(text: string) {
+      const clean = text.replace(/\s+/g, ' ').trim()
+      if (!clean || seen.has(clean)) return
+      seen.add(clean)
+      if (!currentSection) {
+        currentSection = { heading: null, paragraphs: [] }
+        sections.push(currentSection)
+      }
+      currentSection.paragraphs.push(clean)
+    }
+
+    function walkNode(node: HTMLElement) {
+      if (!node.tagName) {
+        // Non-element node; nothing to do
+        return
+      }
+
+      const tagLower = node.tagName.toLowerCase()
+
+      // Headings start a new section
+      if (['h2', 'h3'].includes(tagLower)) {
+        const heading = node.text.replace(/\s+/g, ' ').trim()
+        if (heading) {
+          currentSection = { heading, paragraphs: [] }
+          sections.push(currentSection)
+        }
+        return
+      }
+
+      // Paragraphs
+      if (tagLower === 'p') {
+        pushParagraph(node.text)
+        return
+      }
+
+      // Recurse into children
+      for (const child of node.childNodes) {
+        if (child instanceof HTMLElement) {
+          walkNode(child)
+        }
+      }
+    }
+
+    walkNode(body)
+
+    // Drop sections with no paragraphs
+    const filteredSections = sections.filter(s => s.paragraphs.length > 0)
+
+    const totalLength = filteredSections.reduce(
+      (sum, s) => sum + s.paragraphs.join(' ').length,
+      0
+    )
+
+    if (totalLength < 200 || filteredSections.length === 0) {
+      return { available: false }
+    }
+
+    return {
+      available: true,
+      source: 'The Conversation',
+      sections: filteredSections
+    }
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -410,6 +511,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getWikipediaText(id)
     } else if (id.startsWith('wikisource:')) {
       return await getWikisourceText(id)
+    } else if (id.startsWith('conversation:')) {
+      return await getTheConversationText(id)
     } else {
       return { available: false }
     }
