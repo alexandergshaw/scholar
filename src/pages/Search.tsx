@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search as SearchIcon, SearchX } from 'lucide-react'
 import { searchWorks } from '../utils/openalexApi'
@@ -78,6 +78,8 @@ export default function Search() {
   const [hasSearched, setHasSearched] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
+
+  const didMountRef = useRef(false)
 
   const performSearch = async (pageNum: number = 1) => {
     if (!query) {
@@ -169,6 +171,23 @@ export default function Search() {
       performSearch(1)
     }
   }, [])
+
+  useEffect(() => {
+    // Skip the very first run (component mount) so we don't double-fetch.
+    if (!didMountRef.current) { didMountRef.current = true; return }
+    // Only auto-refetch once the user actually has a query to search.
+    if (!query.trim()) return
+    const t = setTimeout(() => {
+      setPage(1)
+      setPrimaryPage(1)
+      performSearch(1)
+    }, 350)
+    return () => clearTimeout(t)
+  }, [
+    openAccessOnly, fullTextOnly, readableInlineOnly, sort, docType,
+    yearFrom, yearTo, author, topic, primaryMode,
+    Array.from(enabledSources).sort().join(',')
+  ])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
