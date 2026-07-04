@@ -2,11 +2,17 @@
 // Queries three free corpora: Project Gutenberg, Internet Archive, Chronicling America
 // Keep this file free of React/Vite imports so it can run on Node.js only
 
-// node-html-parser is CJS; default-import it and read `parse` off the package
-// for Vercel serverless CJS/ESM interop (a dynamic import() yields an undefined
-// `parse` there, which silently drops HTML-scraped sources).
-import htmlParserPkg from 'node-html-parser'
-const parse = ((htmlParserPkg as any).parse ?? htmlParserPkg) as typeof import('node-html-parser').parse
+// node-html-parser is CJS. A static import crashes Vercel's ESM serverless
+// runtime; a dynamic import loads but leaves the named `parse` undefined there
+// (it lives on `.default`). Load lazily and read from `.default` with fallbacks.
+let _htmlLib: { parse: typeof import('node-html-parser').parse } | null = null
+async function loadHtml() {
+  if (!_htmlLib) {
+    const m: any = await import('node-html-parser')
+    _htmlLib = { parse: m.parse ?? m.default?.parse ?? m.default }
+  }
+  return _htmlLib
+}
 
 export interface PrimarySource {
   id: string
@@ -322,6 +328,7 @@ async function fetchTheConversation(query: string, page: number): Promise<Primar
     if (!response.ok) return []
 
     const html = await response.text()
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Find all anchors and filter by href pattern
@@ -525,6 +532,7 @@ async function fetchStandardEbooks(query: string, page: number): Promise<Primary
     if (!response.ok) return []
 
     const html = await response.text()
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Find all anchors and filter by href pattern
@@ -785,6 +793,7 @@ async function fetchStanfordEncyclopedia(query: string, page: number): Promise<P
     if (!response.ok) return []
 
     const html = await response.text()
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     const results: PrimarySource[] = []

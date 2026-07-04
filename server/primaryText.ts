@@ -6,13 +6,21 @@
 // `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
 // See note in fulltextCore.ts: default-import node-html-parser (CJS) and read
 // `parse` off it for Vercel serverless CJS/ESM interop. HTMLElement type-only.
-import htmlParserPkg from 'node-html-parser'
+// See note in fulltextCore.ts: node-html-parser (CJS) must be loaded via a lazy
+// dynamic import, reading `parse` and the `HTMLElement` constructor (used by the
+// runtime `instanceof` checks) off `.default` for Vercel's ESM interop.
 import type { HTMLElement } from 'node-html-parser'
-const parse = ((htmlParserPkg as any).parse ?? htmlParserPkg) as typeof import('node-html-parser').parse
-// Runtime HTMLElement constructor (for `instanceof`), obtained the CJS-safe way.
-// A named `import { HTMLElement }` crashes Vercel; `import type` erases it, which
-// breaks the runtime `instanceof` checks below.
-const HTMLElementCtor = (htmlParserPkg as any).HTMLElement
+let _htmlLib: { parse: typeof import('node-html-parser').parse; HTMLElementCtor: any } | null = null
+async function loadHtml() {
+  if (!_htmlLib) {
+    const m: any = await import('node-html-parser')
+    _htmlLib = {
+      parse: m.parse ?? m.default?.parse ?? m.default,
+      HTMLElementCtor: m.HTMLElement ?? m.default?.HTMLElement
+    }
+  }
+  return _htmlLib
+}
 import type { FullTextSection, FullTextResult } from '../src/types'
 // Lazy loaders: the PDF/OA extraction path pulls in a heavy pdf.js dependency
 // (unpdf, via oaExtractCore). Import it dynamically only when an extraction-based
@@ -339,6 +347,7 @@ async function getWikisourceText(id: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse, HTMLElementCtor } = await loadHtml()
     const root = parse(html)
 
     // Remove cruft that would pollute the reading text
@@ -445,6 +454,7 @@ async function getTheConversationText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
+    const { parse, HTMLElementCtor } = await loadHtml()
     const root = parse(html)
 
     // Find the article body
@@ -570,6 +580,7 @@ async function getStandardEbooksText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
+    const { parse, HTMLElementCtor } = await loadHtml()
     const root = parse(html)
 
     // Content root: body or root

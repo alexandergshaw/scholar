@@ -7,14 +7,20 @@
 // serverless runtime because it can't resolve the `HTMLElement` named export
 // from a CommonJS module (FUNCTION_INVOCATION_FAILED). HTMLElement is only used
 // as a type, so import it type-only (erased at runtime).
-// node-html-parser is CJS. Import the package default (= module.exports) and
-// read `parse` off it — reliable across Vercel's serverless CJS/ESM interop.
-// A named import (`{ parse, HTMLElement }`) crashes the function at load, and a
-// dynamic `import()` yields an undefined `parse` there; the default import does
-// neither. HTMLElement is used only as a type (erased at runtime).
-import htmlParserPkg from 'node-html-parser'
+// node-html-parser is CJS. A STATIC import (named OR default) crashes Vercel's
+// ESM serverless runtime at load (FUNCTION_INVOCATION_FAILED). A dynamic import
+// loads fine, but Vercel's interop leaves the named `parse` undefined — the real
+// exports live on `.default` (= module.exports). Load lazily and read from
+// `.default` with fallbacks so it works in dev (tsx/Vite) and on Vercel.
 import type { HTMLElement } from 'node-html-parser'
-const parse = ((htmlParserPkg as any).parse ?? htmlParserPkg) as typeof import('node-html-parser').parse
+let _htmlLib: { parse: typeof import('node-html-parser').parse } | null = null
+async function loadHtml() {
+  if (!_htmlLib) {
+    const m: any = await import('node-html-parser')
+    _htmlLib = { parse: m.parse ?? m.default?.parse ?? m.default }
+  }
+  return _htmlLib
+}
 
 export interface FullTextSection {
   heading: string | null
@@ -232,6 +238,7 @@ async function getEuropePmcFullText(pmcid: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await loadHtml()
     const root = parse(xml)
     const sections: FullTextSection[] = []
     const seen = new Set<string>()
@@ -358,6 +365,7 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Pre-clean: replace math elements with their alttext

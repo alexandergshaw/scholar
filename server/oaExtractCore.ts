@@ -4,11 +4,17 @@
 
 // Default-import the CJS module (see note in fulltextCore.ts): a named import of
 // `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
-// See note in fulltextCore.ts: default-import node-html-parser (CJS) and read
-// `parse` off it for Vercel serverless CJS/ESM interop. HTMLElement type-only.
-import htmlParserPkg from 'node-html-parser'
+// See note in fulltextCore.ts: node-html-parser (CJS) must be loaded via a lazy
+// dynamic import, reading `parse` off `.default` for Vercel's ESM interop.
 import type { HTMLElement } from 'node-html-parser'
-const parse = ((htmlParserPkg as any).parse ?? htmlParserPkg) as typeof import('node-html-parser').parse
+let _htmlLib: { parse: typeof import('node-html-parser').parse } | null = null
+async function loadHtml() {
+  if (!_htmlLib) {
+    const m: any = await import('node-html-parser')
+    _htmlLib = { parse: m.parse ?? m.default?.parse ?? m.default }
+  }
+  return _htmlLib
+}
 import { extractText, getDocumentProxy } from 'unpdf'
 
 export interface FullTextSection {
@@ -77,8 +83,9 @@ async function extractTextFromPdf(arrayBuffer: ArrayBuffer): Promise<string | nu
 }
 
 // Extract text from HTML using node-html-parser
-function extractTextFromHtml(html: string): FullTextResult {
+async function extractTextFromHtml(html: string): Promise<FullTextResult> {
   try {
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Remove unwanted elements
@@ -281,7 +288,7 @@ export async function extractOaFullText(rawUrl: string): Promise<FullTextResult>
         return { available: false }
       }
 
-      return extractTextFromHtml(html)
+      return await extractTextFromHtml(html)
     }
   } catch {
     // Never throw; always return unavailable
