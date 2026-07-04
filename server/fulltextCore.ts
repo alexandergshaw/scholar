@@ -12,9 +12,12 @@
 // Vercel's ESM runtime (unresolved export); a default import / dynamic import /
 // createRequire all failed there too. Namespace import + `.default` is the form
 // that loads and exposes `parse`/`HTMLElement` in both dev and Vercel.
-import * as nodeHtmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const parse = (((nodeHtmlParser as any).default ?? nodeHtmlParser).parse) as typeof import('node-html-parser').parse
+let _nhpMod: any = null
+async function loadHtml() {
+  if (!_nhpMod) { const m: any = await import('node-html-parser'); _nhpMod = m.default ?? m; if (!_nhpMod.parse && m.parse) _nhpMod = m }
+  return _nhpMod as { parse: typeof import('node-html-parser').parse; HTMLElement: any }
+}
 
 export interface FullTextSection {
   heading: string | null
@@ -232,6 +235,7 @@ async function getEuropePmcFullText(pmcid: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await loadHtml()
     const root = parse(xml)
     const sections: FullTextSection[] = []
     const seen = new Set<string>()
@@ -358,6 +362,7 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Pre-clean: replace math elements with their alttext

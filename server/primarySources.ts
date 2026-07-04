@@ -4,8 +4,6 @@
 
 // See note in server/fulltextCore.ts: namespace-import node-html-parser (CJS)
 // and read `parse` off `.default` for Vercel serverless interop.
-import * as nodeHtmlParser from 'node-html-parser'
-const parse = (((nodeHtmlParser as any).default ?? nodeHtmlParser).parse) as typeof import('node-html-parser').parse
 
 export interface PrimarySource {
   id: string
@@ -321,6 +319,7 @@ async function fetchTheConversation(query: string, page: number): Promise<Primar
     if (!response.ok) return []
 
     const html = await response.text()
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Find all anchors and filter by href pattern
@@ -524,6 +523,7 @@ async function fetchStandardEbooks(query: string, page: number): Promise<Primary
     if (!response.ok) return []
 
     const html = await response.text()
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Find all anchors and filter by href pattern
@@ -784,6 +784,7 @@ async function fetchStanfordEncyclopedia(query: string, page: number): Promise<P
     if (!response.ok) return []
 
     const html = await response.text()
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     const results: PrimarySource[] = []

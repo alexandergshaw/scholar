@@ -8,9 +8,12 @@
 // dynamic import, reading `parse` off `.default` for Vercel's ESM interop.
 // See note in fulltextCore.ts: namespace-import node-html-parser (CJS) and read
 // `parse` off `.default` for Vercel serverless interop.
-import * as nodeHtmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const parse = (((nodeHtmlParser as any).default ?? nodeHtmlParser).parse) as typeof import('node-html-parser').parse
+let _nhpMod: any = null
+async function loadHtml() {
+  if (!_nhpMod) { const m: any = await import('node-html-parser'); _nhpMod = m.default ?? m; if (!_nhpMod.parse && m.parse) _nhpMod = m }
+  return _nhpMod as { parse: typeof import('node-html-parser').parse; HTMLElement: any }
+}
 import { extractText, getDocumentProxy } from 'unpdf'
 
 export interface FullTextSection {
@@ -79,8 +82,9 @@ async function extractTextFromPdf(arrayBuffer: ArrayBuffer): Promise<string | nu
 }
 
 // Extract text from HTML using node-html-parser
-function extractTextFromHtml(html: string): FullTextResult {
+async function extractTextFromHtml(html: string): Promise<FullTextResult> {
   try {
+    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Remove unwanted elements
@@ -283,7 +287,7 @@ export async function extractOaFullText(rawUrl: string): Promise<FullTextResult>
         return { available: false }
       }
 
-      return extractTextFromHtml(html)
+      return await extractTextFromHtml(html)
     }
   } catch {
     // Never throw; always return unavailable

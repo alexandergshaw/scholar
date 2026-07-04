@@ -11,11 +11,12 @@
 // runtime `instanceof` checks) off `.default` for Vercel's ESM interop.
 // See note in fulltextCore.ts: namespace-import node-html-parser (CJS) and read
 // `parse` and the `HTMLElement` constructor (for instanceof) off `.default`.
-import * as nodeHtmlParser from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
-const _nhp: any = (nodeHtmlParser as any).default ?? nodeHtmlParser
-const parse = _nhp.parse as typeof import('node-html-parser').parse
-const HTMLElementCtor: any = _nhp.HTMLElement
+let _nhpMod: any = null
+async function loadHtml() {
+  if (!_nhpMod) { const m: any = await import('node-html-parser'); _nhpMod = m.default ?? m; if (!_nhpMod.parse && m.parse) _nhpMod = m }
+  return _nhpMod as { parse: typeof import('node-html-parser').parse; HTMLElement: any }
+}
 import type { FullTextSection, FullTextResult } from '../src/types'
 // Lazy loaders: the PDF/OA extraction path pulls in a heavy pdf.js dependency
 // (unpdf, via oaExtractCore). Import it dynamically only when an extraction-based
@@ -342,6 +343,7 @@ async function getWikisourceText(id: string): Promise<FullTextResult> {
       return { available: false }
     }
 
+    const { parse, HTMLElement: HTMLElementCtor } = await loadHtml()
     const root = parse(html)
 
     // Remove cruft that would pollute the reading text
@@ -448,6 +450,7 @@ async function getTheConversationText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
+    const { parse, HTMLElement: HTMLElementCtor } = await loadHtml()
     const root = parse(html)
 
     // Find the article body
@@ -573,6 +576,7 @@ async function getStandardEbooksText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
+    const { parse, HTMLElement: HTMLElementCtor } = await loadHtml()
     const root = parse(html)
 
     // Content root: body or root
