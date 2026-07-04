@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { Star } from 'lucide-react'
+import { Star, BookOpen } from 'lucide-react'
 import { Article } from '../types'
 import { useFavoritesStore } from '../stores/favoritesStore'
-import { shortIdOf } from '../utils/openalexApi'
+import { shortIdOf, isReadableInApp } from '../utils/openalexApi'
 import './ArticleCard.css'
 
 interface ArticleCardProps {
@@ -46,6 +46,12 @@ export default function ArticleCard({ article, compact = false }: ArticleCardPro
           <span className="article-year">{article.year}</span>
           {article.journal && article.journal !== 'Unknown Journal' && <span className="article-journal">{article.journal}</span>}
           {article.isOA && <span className="oa-badge">OA</span>}
+          {isReadableInApp(article) && (
+            <span className="inline-badge" title="Full text renders inside the app">
+              <BookOpen size={12} />
+              Readable in-app
+            </span>
+          )}
         </div>
         {article.abstract && <p className="article-summary">{article.abstract}</p>}
       </div>

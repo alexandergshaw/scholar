@@ -37,6 +37,14 @@ export function shortIdOf(id: string): string {
   return id.split('/').pop() || id
 }
 
+// True when the article has a source we can reliably render inline (structured
+// full text from arXiv or PMC). Intentionally conservative: pmid/oaUrl are
+// excluded because they often resolve only to an abstract or a non-parseable
+// page, which would make the badge misleading.
+export function isReadableInApp(article: Article): boolean {
+  return !!(article.arxivId || article.pmcid)
+}
+
 export async function getWorkById(shortId: string): Promise<Article> {
   const url = `${BASE_URL}/works/${encodeURIComponent(shortId)}?mailto=${MAILTO}`
   const response = await fetch(url)
