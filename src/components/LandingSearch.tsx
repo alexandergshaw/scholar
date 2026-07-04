@@ -4,7 +4,7 @@ import { autocomplete, shortIdOf } from '../utils/openalexApi'
 import { AutocompleteResult } from '../types'
 import './LandingSearch.css'
 
-type SearchMode = 'articles' | 'authors' | 'topics'
+type SearchMode = 'articles' | 'authors' | 'topics' | 'sources'
 
 export default function LandingSearch() {
   const navigate = useNavigate()
@@ -22,7 +22,8 @@ export default function LandingSearch() {
   const placeholders: Record<SearchMode, string> = {
     articles: 'Search articles…',
     authors: 'Search authors…',
-    topics: 'Search topics…'
+    topics: 'Search topics…',
+    sources: 'Search primary & historical sources…'
   }
 
   const performAutocomplete = useCallback(async (query: string, currentRequestId: number) => {
@@ -30,6 +31,14 @@ export default function LandingSearch() {
       setSuggestions([])
       setShowDropdown(false)
       setLoading(false)
+      return
+    }
+
+    // No autocomplete for sources mode
+    if (mode === 'sources') {
+      setLoading(false)
+      setSuggestions([])
+      setShowDropdown(false)
       return
     }
 
@@ -105,6 +114,9 @@ export default function LandingSearch() {
       case 'articles':
         navigate(`/reader/${shortIdOf(suggestion.id)}`)
         break
+      case 'sources':
+        // Sources mode doesn't use suggestions
+        break
     }
     setInput('')
     setSuggestions([])
@@ -134,6 +146,9 @@ export default function LandingSearch() {
         break
       case 'articles':
         navigate(`/search?query=${encodeURIComponent(input)}`)
+        break
+      case 'sources':
+        navigate(`/search?primary=true&query=${encodeURIComponent(input)}`)
         break
     }
     setInput('')
@@ -220,6 +235,13 @@ export default function LandingSearch() {
           aria-label="Search topics mode"
         >
           Topics
+        </button>
+        <button
+          className={`mode-tab ${mode === 'sources' ? 'active' : ''}`}
+          onClick={() => handleModeChange('sources')}
+          aria-label="Search sources mode"
+        >
+          Sources
         </button>
       </div>
 

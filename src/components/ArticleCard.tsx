@@ -2,14 +2,14 @@ import { useNavigate } from 'react-router-dom'
 import { Article } from '../types'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { shortIdOf } from '../utils/openalexApi'
-import AskBox from './AskBox'
 import './ArticleCard.css'
 
 interface ArticleCardProps {
   article: Article
+  compact?: boolean
 }
 
-export default function ArticleCard({ article }: ArticleCardProps) {
+export default function ArticleCard({ article, compact = false }: ArticleCardProps) {
   const navigate = useNavigate()
   const { isFavorite, toggleFavorite } = useFavoritesStore()
 
@@ -22,25 +22,31 @@ export default function ArticleCard({ article }: ArticleCardProps) {
     toggleFavorite(article)
   }
 
+  if (compact) {
+    return (
+      <div className="article-card compact" onClick={handleCardClick}>
+        <div className="article-card-content">
+          <h3 className="article-title">{article.title}</h3>
+          <div className="article-meta">
+            {article.journal && <span>{article.journal}</span>}
+            {article.year && <span>{article.year}</span>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="article-card" onClick={handleCardClick}>
       <div className="article-card-content">
         <h3 className="article-title">{article.title}</h3>
-        <p className="article-authors">{article.authors.join(', ')}</p>
+        <p className="article-authors">{article.authors.slice(0, 3).join(', ')}{article.authors.length > 3 ? ' et al.' : ''}</p>
         <div className="article-meta">
           <span className="article-year">{article.year}</span>
           <span className="article-journal">{article.journal}</span>
           {article.isOA && <span className="oa-badge">OA</span>}
         </div>
         {article.abstract && <p className="article-summary">{article.abstract}</p>}
-        <AskBox
-          compact
-          getContext={() =>
-            [article.title, article.authors.join(', '), article.journal, article.abstract]
-              .filter(Boolean)
-              .join('\n')
-          }
-        />
       </div>
       <button
         className={`favorite-btn ${isFavorite(article.id) ? 'active' : ''}`}

@@ -16,11 +16,11 @@
 
 .mode-tab {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0.5rem;
   border: none;
   background-color: transparent;
   color: var(--color-text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;

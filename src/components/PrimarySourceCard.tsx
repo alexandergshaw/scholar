@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { PrimarySource } from '../types'
-import AskBox from './AskBox'
 import './PrimarySourceCard.css'
 
 interface PrimarySourceCardProps {
@@ -30,14 +29,6 @@ export default function PrimarySourceCard({ source }: PrimarySourceCardProps) {
           {source.sourceName}
         </span>
         {source.snippet && <p className="primary-snippet">{source.snippet}</p>}
-        <AskBox
-          compact
-          getContext={() =>
-            [source.title, source.creator, source.sourceName, source.snippet]
-              .filter(Boolean)
-              .join('\n')
-          }
-        />
       </div>
       <div className="primary-actions">
         <button className="primary-read-link primary-inline" onClick={handleReadInline}>

@@ -39,7 +39,7 @@ export default function Home() {
           <h2 className="section-title">Continue reading</h2>
           <div className="articles-list">
             {recents.slice(0, 5).map(article => (
-              <ArticleCard key={article.id} article={article} />
+              <ArticleCard key={article.id} article={article} compact />
             ))}
           </div>
         </section>

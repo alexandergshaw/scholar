@@ -29,6 +29,7 @@ export default function Search() {
   const [primaryPage, setPrimaryPage] = useState(1)
   const [primaryHasMore, setPrimaryHasMore] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const performSearch = async (pageNum: number = 1) => {
     if (!query) {
@@ -103,7 +104,10 @@ export default function Search() {
   }
 
   useEffect(() => {
-    performSearch(1)
+    // Auto-run search if there's a query in the URL
+    if (query) {
+      performSearch(1)
+    }
   }, [])
 
   const handleSearch = (e: React.FormEvent) => {
@@ -158,78 +162,93 @@ export default function Search() {
 
         {!primaryMode && (
           <>
-            <div className="form-row">
-              <div className="form-group">
-                <input
-                  type="text"
-                  placeholder="Author name"
-                  value={author}
-                  onChange={e => setAuthor(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-              <div className="form-group">
-                <input
-                  type="text"
-                  placeholder="Topic"
-                  value={topic}
-                  onChange={e => setTopic(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-            </div>
+            {/* Collapsible More Filters Section */}
+            <button
+              type="button"
+              className="filters-toggle"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              aria-expanded={filtersOpen}
+            >
+              <span className="filters-toggle-arrow">{filtersOpen ? '▾' : '▸'}</span>
+              More filters
+            </button>
 
-            <div className="form-row">
-              <div className="form-group">
-                <input
-                  type="number"
-                  placeholder="Year from"
-                  value={yearFrom}
-                  onChange={e => setYearFrom(e.target.value)}
-                  className="search-input"
-                  min="1900"
-                  max={new Date().getFullYear()}
-                />
+            {filtersOpen && (
+              <div className="filters-section">
+                <div className="form-row">
+                  <div className="form-group">
+                    <input
+                      type="text"
+                      placeholder="Author name"
+                      value={author}
+                      onChange={e => setAuthor(e.target.value)}
+                      className="search-input"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <input
+                      type="text"
+                      placeholder="Topic"
+                      value={topic}
+                      onChange={e => setTopic(e.target.value)}
+                      className="search-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <input
+                      type="number"
+                      placeholder="Year from"
+                      value={yearFrom}
+                      onChange={e => setYearFrom(e.target.value)}
+                      className="search-input"
+                      min="1900"
+                      max={new Date().getFullYear()}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <input
+                      type="number"
+                      placeholder="Year to"
+                      value={yearTo}
+                      onChange={e => setYearTo(e.target.value)}
+                      className="search-input"
+                      min="1900"
+                      max={new Date().getFullYear()}
+                    />
+                  </div>
+                </div>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={openAccessOnly}
+                    onChange={e => setOpenAccessOnly(e.target.checked)}
+                  />
+                  <span>Open access only</span>
+                </label>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={fullTextOnly}
+                    onChange={e => setFullTextOnly(e.target.checked)}
+                  />
+                  <span>Full text available only</span>
+                </label>
+
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={readableInlineOnly}
+                    onChange={e => setReadableInlineOnly(e.target.checked)}
+                  />
+                  <span>Readable inline (arXiv/PMC)</span>
+                </label>
               </div>
-              <div className="form-group">
-                <input
-                  type="number"
-                  placeholder="Year to"
-                  value={yearTo}
-                  onChange={e => setYearTo(e.target.value)}
-                  className="search-input"
-                  min="1900"
-                  max={new Date().getFullYear()}
-                />
-              </div>
-            </div>
-
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={openAccessOnly}
-                onChange={e => setOpenAccessOnly(e.target.checked)}
-              />
-              <span>Open access only</span>
-            </label>
-
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={fullTextOnly}
-                onChange={e => setFullTextOnly(e.target.checked)}
-              />
-              <span>Full text available only</span>
-            </label>
-
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={readableInlineOnly}
-                onChange={e => setReadableInlineOnly(e.target.checked)}
-              />
-              <span>Readable inline (arXiv/PMC)</span>
-            </label>
+            )}
           </>
         )}
 
