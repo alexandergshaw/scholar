@@ -31,6 +31,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
           <span className="article-journal">{article.journal}</span>
           {article.isOA && <span className="oa-badge">OA</span>}
         </div>
+        {article.abstract && <p className="article-summary">{article.abstract}</p>}
       </div>
       <button
         className={`favorite-btn ${isFavorite(article.id) ? 'active' : ''}`}

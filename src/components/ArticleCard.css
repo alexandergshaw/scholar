@@ -41,6 +41,17 @@
   color: var(--color-text-secondary);
 }
 
+.article-summary {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .article-year {
   font-weight: 500;
 }
