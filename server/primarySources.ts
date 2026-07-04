@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks'
   snippet?: string
   readUrl: string
 }
@@ -499,6 +499,73 @@ async function fetchOapen(query: string, page: number): Promise<PrimarySource[]>
   }
 }
 
+// Standard Ebooks API
+async function fetchStandardEbooks(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://standardebooks.org/ebooks')
+    url.searchParams.append('query', query)
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (scholar-app)'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const html = await response.text()
+    const { parse } = await import('node-html-parser')
+    const root = parse(html)
+
+    // Find all anchors and filter by href pattern
+    const anchors = root.querySelectorAll('a')
+    const results: PrimarySource[] = []
+    const seenHrefs = new Set<string>()
+
+    const titleCase = (s: string): string =>
+      s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
+    for (const anchor of anchors) {
+      const href = anchor.getAttribute('href')
+      if (!href || !href.match(/^\/ebooks\/[a-z0-9-]+\/[a-z0-9-]+$/)) continue
+      if (seenHrefs.has(href)) continue
+
+      seenHrefs.add(href)
+
+      // Extract author and book slugs from href like /ebooks/author-slug/book-slug
+      const parts = href.slice(1).split('/') // Remove leading /
+      if (parts.length !== 3 || parts[0] !== 'ebooks') continue
+
+      const authorSlug = parts[1]
+      const bookSlug = parts[2]
+
+      const title = titleCase(bookSlug)
+      const creator = titleCase(authorSlug)
+
+      results.push({
+        id: `standardebooks:${authorSlug}/${bookSlug}`,
+        title,
+        creator,
+        date: undefined,
+        sourceName: 'Standard Ebooks' as const,
+        snippet: undefined,
+        readUrl: `https://standardebooks.org${href}`
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -516,7 +583,8 @@ export async function searchPrimarySources(
     fetchWikisource(query, page),
     fetchTheConversation(query, page),
     fetchDoaj(query, page),
-    fetchOapen(query, page)
+    fetchOapen(query, page),
+    fetchStandardEbooks(query, page)
   ])
 
   const sources: PrimarySource[][] = []

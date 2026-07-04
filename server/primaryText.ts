@@ -523,6 +523,120 @@ async function getOapenText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from Standard Ebooks
+async function getStandardEbooksText(id: string): Promise<FullTextResult> {
+  try {
+    const path = id.replace(/^standardebooks:/, '')
+    const url = `https://standardebooks.org/ebooks/${path}/text/single-page`
+
+    const response = await fetchWithTimeout(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (scholar-app)'
+      }
+    })
+
+    if (!response.ok) {
+      return { available: false }
+    }
+
+    const html = await response.text()
+    const root = parse(html)
+
+    // Content root: body or root
+    let contentRoot = root.querySelector('body') || root
+
+    // Remove nav, .toc
+    contentRoot
+      .querySelectorAll('nav, .toc')
+      .forEach(el => el.remove())
+
+    const sections: FullTextSection[] = []
+    const seen = new Set<string>()
+    let currentSection: FullTextSection | null = null
+
+    function pushParagraph(text: string) {
+      const clean = text.replace(/\s+/g, ' ').trim()
+      if (!clean || seen.has(clean)) return
+      seen.add(clean)
+      if (!currentSection) {
+        currentSection = { heading: null, paragraphs: [] }
+        sections.push(currentSection)
+      }
+      currentSection.paragraphs.push(clean)
+    }
+
+    function walkNode(node: HTMLElement) {
+      if (!node.tagName) {
+        return
+      }
+
+      const tagLower = node.tagName.toLowerCase()
+
+      // Headings start a new section
+      if (['h1', 'h2', 'h3'].includes(tagLower)) {
+        const heading = node.text.replace(/\s+/g, ' ').trim()
+        if (heading) {
+          currentSection = { heading, paragraphs: [] }
+          sections.push(currentSection)
+        }
+        return
+      }
+
+      // Paragraphs
+      if (tagLower === 'p') {
+        pushParagraph(node.text)
+        return
+      }
+
+      // Recurse into children
+      for (const child of node.childNodes) {
+        if (child instanceof HTMLElement) {
+          walkNode(child)
+        }
+      }
+    }
+
+    walkNode(contentRoot)
+
+    // Drop sections with no paragraphs
+    const filteredSections = sections.filter(s => s.paragraphs.length > 0)
+
+    // Cap the total number of paragraphs at 3000
+    let paragraphCount = 0
+    const cappedSections: FullTextSection[] = []
+    for (const section of filteredSections) {
+      const remaining = 3000 - paragraphCount
+      if (remaining <= 0) break
+      if (section.paragraphs.length > remaining) {
+        cappedSections.push({
+          heading: section.heading,
+          paragraphs: section.paragraphs.slice(0, remaining)
+        })
+        break
+      }
+      cappedSections.push(section)
+      paragraphCount += section.paragraphs.length
+    }
+
+    const totalLength = cappedSections.reduce(
+      (sum, s) => sum + s.paragraphs.join(' ').length,
+      0
+    )
+
+    if (totalLength < 200 || cappedSections.length === 0) {
+      return { available: false }
+    }
+
+    return {
+      available: true,
+      source: 'Standard Ebooks',
+      sections: cappedSections
+    }
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -542,6 +656,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getDoajText(id)
     } else if (id.startsWith('oapen:')) {
       return await getOapenText(id)
+    } else if (id.startsWith('standardebooks:')) {
+      return await getStandardEbooksText(id)
     } else {
       return { available: false }
     }
