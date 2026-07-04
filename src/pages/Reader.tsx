@@ -10,6 +10,7 @@ import ListenBar from '../components/ListenBar'
 import { Article, FullTextResult } from '../types'
 import { getWorkById, shortIdOf } from '../utils/openalexApi'
 import { fetchFullText } from '../utils/fulltextApi'
+import { fetchOaExtract } from '../utils/oaExtractApi'
 import './Reader.css'
 
 export default function Reader() {
@@ -20,6 +21,7 @@ export default function Reader() {
   const [error, setError] = useState<string | null>(null)
   const [fullText, setFullText] = useState<FullTextResult | null>(null)
   const [fullTextLoading, setFullTextLoading] = useState(false)
+  const [extracting, setExtracting] = useState(false)
 
   const { fontSize, fontFamily, lineSpacing } = useReaderSettingsStore()
   const { isFavorite, toggleFavorite } = useFavoritesStore()
@@ -74,10 +76,21 @@ export default function Reader() {
 
     const loadFullText = async () => {
       setFullTextLoading(true)
+      setExtracting(false)
       const result = await fetchFullText(article)
       if (!cancelled) {
         setFullText(result)
         setFullTextLoading(false)
+
+        // If unavailable but has a freeUrl, attempt inline extraction
+        if (!result.available && result.freeUrl) {
+          setExtracting(true)
+          const extracted = await fetchOaExtract(result.freeUrl)
+          if (!cancelled && extracted.available) {
+            setFullText(extracted)
+          }
+          setExtracting(false)
+        }
       }
     }
 
@@ -220,9 +233,9 @@ export default function Reader() {
           </div>
 
           {/* Full text content or abstract */}
-          {fullTextLoading && (
+          {(fullTextLoading || extracting) && (
             <div className="fulltext-loading">
-              <p>Loading full text…</p>
+              <p>{extracting ? 'Fetching open-access full text…' : 'Loading full text…'}</p>
             </div>
           )}
 

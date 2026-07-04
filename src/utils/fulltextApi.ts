@@ -18,9 +18,12 @@ export async function fetchFullText(article: Article): Promise<FullTextResult> {
     if (article.arxivId) {
       params.append('arxivId', article.arxivId)
     }
+    if (article.oaUrl) {
+      params.append('oaUrl', article.oaUrl)
+    }
 
     // If we have none of these, return unavailable
-    if (!article.pmcid && !article.pmid && !article.doi && !article.arxivId) {
+    if (!article.pmcid && !article.pmid && !article.doi && !article.arxivId && !article.oaUrl) {
       return { available: false }
     }
 

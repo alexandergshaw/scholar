@@ -519,6 +519,7 @@ export async function getFullText(params: {
   pmid?: string
   doi?: string
   arxivId?: string
+  oaUrl?: string
 }): Promise<FullTextResult> {
   try {
     // Try PMC first
@@ -559,12 +560,12 @@ export async function getFullText(params: {
       }
     }
 
-    // All in-app attempts failed; try Unpaywall for a free link
-    const freeUrl = await getUnpaywallFreeUrl(params.doi)
+    // All in-app attempts failed; prefer known OA link or try Unpaywall
+    const freeUrl = params.oaUrl || (await getUnpaywallFreeUrl(params.doi)) || undefined
     return { available: false, ...(freeUrl ? { freeUrl } : {}) }
   } catch {
     // Wrap any unexpected errors; never throw
-    const freeUrl = await getUnpaywallFreeUrl(params.doi)
+    const freeUrl = params.oaUrl || (await getUnpaywallFreeUrl(params.doi)) || undefined
     return { available: false, ...(freeUrl ? { freeUrl } : {}) }
   }
 }

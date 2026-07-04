@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { getFullText } from './server/fulltextCore'
+import { extractOaFullText } from './server/oaExtractCore'
 import { searchPrimarySources } from './server/primarySources'
 import { getPrimaryText } from './server/primaryText'
 import { askGemini } from './server/askCore'
@@ -17,8 +18,37 @@ const fulltextPlugin = {
         const pmid = url.searchParams.get('pmid') || undefined
         const doi = url.searchParams.get('doi') || undefined
         const arxivId = url.searchParams.get('arxivId') || undefined
+        const oaUrl = url.searchParams.get('oaUrl') || undefined
 
-        const result = await getFullText({ pmcid, pmid, doi, arxivId })
+        const result = await getFullText({ pmcid, pmid, doi, arxivId, oaUrl })
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify(result))
+      } catch {
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify({ available: false }))
+      }
+    })
+  }
+}
+
+const oaExtractPlugin = {
+  name: 'oa-extract-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/oa-extract', async (req: any, res: any, next: any) => {
+      try {
+        const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+        const oaUrl = url.searchParams.get('url') || undefined
+
+        if (!oaUrl) {
+          res.setHeader('Content-Type', 'application/json')
+          res.statusCode = 200
+          res.end(JSON.stringify({ available: false }))
+          return
+        }
+
+        const result = await extractOaFullText(oaUrl)
         res.setHeader('Content-Type', 'application/json')
         res.statusCode = 200
         res.end(JSON.stringify(result))
@@ -179,6 +209,7 @@ const ttsPlugin = {
 export default defineConfig({
   plugins: [
     fulltextPlugin,
+    oaExtractPlugin,
     primaryPlugin,
     primaryTextPlugin,
     askPlugin,
