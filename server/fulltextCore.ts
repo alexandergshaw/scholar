@@ -148,6 +148,129 @@ function parseBioCPassages(passages: BioCPassage[]): FullTextSection[] {
     .filter(section => section.paragraphs.length > 0)
 }
 
+// Fetch and parse Europe PMC JATS XML
+async function getEuropePmcFullText(pmcid: string): Promise<FullTextResult> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000) // 8s timeout
+
+    const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/${encodeURIComponent(pmcid)}/fullTextXML`
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'scholar-app' },
+      signal: controller.signal
+    })
+
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      return { available: false }
+    }
+
+    const xml = await response.text()
+    if (!xml) {
+      return { available: false }
+    }
+
+    const root = parse(xml)
+    const sections: FullTextSection[] = []
+    const seen = new Set<string>()
+
+    // Extract abstract
+    const abstractEl = root.querySelector('abstract')
+    if (abstractEl) {
+      const abstractParagraphs: string[] = []
+      const abstractPs = abstractEl.querySelectorAll('p')
+      for (const p of abstractPs) {
+        const text = (p as HTMLElement).text.replace(/\s+/g, ' ').trim()
+        if (text.length > 0 && !seen.has(text)) {
+          seen.add(text)
+          abstractParagraphs.push(text)
+        }
+      }
+
+      if (abstractParagraphs.length > 0) {
+        sections.push({
+          heading: 'Abstract',
+          paragraphs: abstractParagraphs
+        })
+      }
+    }
+
+    // Extract body sections
+    // Strategy: iterate through direct children of <body> and collect <sec> elements
+    const bodyEl = root.querySelector('body')
+    if (bodyEl) {
+      const bodySections = bodyEl.querySelectorAll('sec')
+      for (const sec of bodySections) {
+        // Skip reference lists and other unwanted sections
+        const secType = (sec as HTMLElement).getAttribute('sec-type')
+        if (secType && ['references', 'ref-list'].includes(secType.toLowerCase())) {
+          continue
+        }
+
+        // Get the heading from the first direct-child <title>
+        let heading: string | null = null
+        let titleEl: HTMLElement | null = null
+        for (const child of sec.childNodes) {
+          if (typeof child === 'string') continue
+          const childEl = child as HTMLElement
+          if (childEl.tagName && childEl.tagName.toLowerCase() === 'title') {
+            titleEl = childEl
+            break
+          }
+        }
+        if (titleEl) {
+          heading = titleEl.text.trim()
+        }
+
+        // Collect paragraphs from direct <p> children only (avoid nested <sec> content)
+        const paragraphs: string[] = []
+        for (const child of sec.childNodes) {
+          if (typeof child === 'string') continue
+          const childEl = child as HTMLElement
+          if (!childEl.tagName) continue
+
+          const tagLower = childEl.tagName.toLowerCase()
+
+          // Skip nested <sec>, <fig>, <table-wrap>, <ref-list>
+          if (['sec', 'fig', 'figure', 'table-wrap', 'table', 'ref-list'].includes(tagLower)) {
+            continue
+          }
+
+          // Collect direct <p> elements
+          if (tagLower === 'p') {
+            const text = childEl.text.replace(/\s+/g, ' ').trim()
+            if (text.length > 0 && !seen.has(text)) {
+              seen.add(text)
+              paragraphs.push(text)
+            }
+          }
+        }
+
+        // Only add section if it has paragraphs and non-empty heading
+        if (paragraphs.length > 0 && heading) {
+          sections.push({
+            heading,
+            paragraphs
+          })
+        }
+      }
+    }
+
+    if (sections.length === 0) {
+      return { available: false }
+    }
+
+    return {
+      available: true,
+      source: 'Europe PMC',
+      sections
+    }
+  } catch {
+    return { available: false }
+  }
+}
+
 // Fetch and parse arXiv HTML using node-html-parser
 async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
   try {
@@ -304,7 +427,7 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
   }
 }
 
-// Main export: fetch full-text article from PMC, then arXiv
+// Main export: fetch full-text article from PMC, Europe PMC, then arXiv
 export async function getFullText(params: {
   pmcid?: string
   pmid?: string
@@ -327,6 +450,12 @@ export async function getFullText(params: {
             sections
           }
         }
+      }
+
+      // Fallback to Europe PMC if BioC produced no sections
+      const europePmcResult = await getEuropePmcFullText(pmcid)
+      if (europePmcResult.available) {
+        return europePmcResult
       }
     }
 

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "measure:fulltext": "npx tsx scripts/measure-fulltext-coverage.ts"
   },
   "dependencies": {
     "d3-force": "^3.0.0",

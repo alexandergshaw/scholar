@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Star, Settings2, X } from 'lucide-react'
+import { ArrowLeft, Star, Settings2, X, ExternalLink } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useRecentsStore } from '../stores/recentsStore'
@@ -256,22 +256,31 @@ export default function Reader() {
           )}
 
           {/* Read full text button and fallback link */}
-          {article.oaUrl ? (
-            <div className="read-full-text-container">
+          <div className="read-full-text-container">
+            {article.oaUrl ? (
               <a
                 href={article.oaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="read-full-text-btn"
               >
-                Read full text (external)
+                <ExternalLink size={16} />
+                Read free full text
               </a>
-            </div>
-          ) : (
-            <div className="read-full-text-container">
+            ) : article.doi ? (
+              <a
+                href={`https://doi.org/${article.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="read-full-text-btn"
+              >
+                <ExternalLink size={16} />
+                View at publisher
+              </a>
+            ) : (
               <p className="no-full-text">Full text not available</p>
-            </div>
-          )}
+            )}
+          </div>
         </article>
       </div>
 
