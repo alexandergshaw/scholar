@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { getFullText } from './server/fulltextCore'
 import { searchPrimarySources } from './server/primarySources'
 import { getPrimaryText } from './server/primaryText'
+import { askGemini } from './server/askCore'
 
 const fulltextPlugin = {
   name: 'fulltext-proxy',
@@ -72,11 +73,63 @@ const primaryTextPlugin = {
   }
 }
 
+const askPlugin = {
+  name: 'ask-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/ask', async (req: any, res: any, next: any) => {
+      try {
+        // Only handle POST requests
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('Method not allowed')
+          return
+        }
+
+        // Read body chunks
+        let body = ''
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          req.on('end', () => {
+            resolve()
+          })
+          req.on('error', reject)
+        })
+
+        // Parse JSON
+        let data
+        try {
+          data = JSON.parse(body || '{}')
+        } catch {
+          res.setHeader('Content-Type', 'application/json')
+          res.statusCode = 200
+          res.end(JSON.stringify({ configured: true, error: 'Bad request.' }))
+          return
+        }
+
+        const { question, context } = data
+
+        // Call askGemini
+        const result = await askGemini(question, context)
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify(result))
+      } catch {
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify({ configured: true, error: 'Ask request failed.' }))
+      }
+    })
+  }
+}
+
 export default defineConfig({
   plugins: [
     fulltextPlugin,
     primaryPlugin,
     primaryTextPlugin,
+    askPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

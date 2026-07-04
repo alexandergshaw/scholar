@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import ReaderControls from '../components/ReaderControls'
+import AskBox from '../components/AskBox'
 import { FullTextResult } from '../types'
 import { fetchPrimaryText } from '../utils/primaryTextApi'
 import './Reader.css'
@@ -91,6 +92,19 @@ export default function PrimaryReader() {
               </p>
             </div>
           )}
+
+          {/* Ask About This feature */}
+          <AskBox
+            getContext={() => {
+              const ft =
+                primaryText && primaryText.available
+                  ? primaryText.sections
+                      .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('\n'))
+                      .join('\n\n')
+                  : ''
+              return [title, ft].filter(Boolean).join('\n\n')
+            }}
+          />
 
           {/* Loading state */}
           {primaryTextLoading && (

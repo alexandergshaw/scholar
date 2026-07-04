@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Article } from '../types'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { shortIdOf } from '../utils/openalexApi'
+import AskBox from './AskBox'
 import './ArticleCard.css'
 
 interface ArticleCardProps {
@@ -32,6 +33,14 @@ export default function ArticleCard({ article }: ArticleCardProps) {
           {article.isOA && <span className="oa-badge">OA</span>}
         </div>
         {article.abstract && <p className="article-summary">{article.abstract}</p>}
+        <AskBox
+          compact
+          getContext={() =>
+            [article.title, article.authors.join(', '), article.journal, article.abstract]
+              .filter(Boolean)
+              .join('\n')
+          }
+        />
       </div>
       <button
         className={`favorite-btn ${isFavorite(article.id) ? 'active' : ''}`}

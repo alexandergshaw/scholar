@@ -115,3 +115,10 @@ export interface PrimarySource {
 export interface PrimarySourcesResponse {
   results: PrimarySource[]
 }
+
+/* Ask About This feature types */
+export interface AskResult {
+  answer?: string
+  error?: string
+  configured: boolean
+}
