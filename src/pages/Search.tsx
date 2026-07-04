@@ -14,6 +14,7 @@ export default function Search() {
   const [yearFrom, setYearFrom] = useState(searchParams.get('yearFrom') || '')
   const [yearTo, setYearTo] = useState(searchParams.get('yearTo') || '')
   const [openAccessOnly, setOpenAccessOnly] = useState(searchParams.get('openAccessOnly') === 'true')
+  const [fullTextOnly, setFullTextOnly] = useState(searchParams.get('fullText') === 'true')
 
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(false)
@@ -45,6 +46,7 @@ export default function Search() {
         yearFrom: yearFrom ? parseInt(yearFrom) : undefined,
         yearTo: yearTo ? parseInt(yearTo) : undefined,
         openAccessOnly,
+        fullTextOnly,
         page: pageNum,
         perPage: 25
       })
@@ -149,6 +151,15 @@ export default function Search() {
             onChange={e => setOpenAccessOnly(e.target.checked)}
           />
           <span>Open access only</span>
+        </label>
+
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={fullTextOnly}
+            onChange={e => setFullTextOnly(e.target.checked)}
+          />
+          <span>Full text available only</span>
         </label>
 
         <button type="submit" className="search-button" disabled={loading}>

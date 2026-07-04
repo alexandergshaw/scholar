@@ -11,6 +11,7 @@ export interface SearchParams {
   yearFrom?: number
   yearTo?: number
   openAccessOnly?: boolean
+  fullTextOnly?: boolean
   page?: number
   perPage?: number
 }
@@ -65,6 +66,10 @@ export async function searchWorks(params: SearchParams): Promise<{ articles: Art
 
   if (params.openAccessOnly) {
     filters.push('is_oa:true')
+  }
+
+  if (params.fullTextOnly) {
+    filters.push('has_fulltext:true')
   }
 
   if (params.yearFrom !== undefined || params.yearTo !== undefined) {
