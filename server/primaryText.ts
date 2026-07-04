@@ -4,8 +4,27 @@
 
 import { parse, HTMLElement } from 'node-html-parser'
 import type { FullTextSection, FullTextResult } from '../src/types'
-import { extractOaFullText } from './oaExtractCore.js'
-import { getUnpaywallFreeUrl } from './fulltextCore.js'
+// Lazy loaders: the PDF/OA extraction path pulls in a heavy pdf.js dependency
+// (unpdf, via oaExtractCore). Import it dynamically only when an extraction-based
+// source is actually read, so a load failure in the serverless runtime can never
+// take down the whole primary-text function — Wikipedia, Standard Ebooks,
+// Gutenberg, etc. need no extraction and must keep working regardless.
+async function extractOaFullText(url: string): Promise<FullTextResult> {
+  try {
+    const m = await import('./oaExtractCore.js')
+    return await m.extractOaFullText(url)
+  } catch {
+    return { available: false }
+  }
+}
+async function getUnpaywallFreeUrl(doi?: string): Promise<string | null> {
+  try {
+    const m = await import('./fulltextCore.js')
+    return await m.getUnpaywallFreeUrl(doi)
+  } catch {
+    return null
+  }
+}
 
 // Helper: fetch with timeout
 async function fetchWithTimeout(
