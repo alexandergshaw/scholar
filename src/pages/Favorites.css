@@ -1,0 +1,18 @@
+.favorites-count {
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.articles-list {
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 600px) {
+  .favorites-count {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}

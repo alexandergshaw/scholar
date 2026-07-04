@@ -1,0 +1,265 @@
+.reader-page {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  z-index: 20;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.back-btn:active {
+  opacity: 0.7;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.favorite-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.favorite-btn:active {
+  opacity: 0.7;
+}
+
+.favorite-btn.active {
+  color: var(--color-accent);
+}
+
+.controls-toggle {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.controls-toggle:active {
+  opacity: 0.7;
+}
+
+.reader-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.reading-pane {
+  max-width: 45rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  color: var(--color-text);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.reading-pane .article-title {
+  font-size: 1.8em;
+  font-weight: 700;
+  margin-bottom: 1.5em;
+  line-height: 1.3;
+}
+
+.article-metadata {
+  background-color: var(--color-bg-secondary);
+  padding: 1.5em;
+  border-radius: 0.25rem;
+  margin-bottom: 2em;
+  font-size: 0.9em;
+  border-left: 4px solid var(--color-accent);
+}
+
+.metadata-row {
+  margin: 0.5em 0;
+  line-height: 1.6;
+}
+
+.metadata-row strong {
+  font-weight: 600;
+  display: inline-block;
+  min-width: 80px;
+}
+
+.metadata-row a {
+  word-break: break-all;
+}
+
+.abstract-section {
+  margin-bottom: 2em;
+}
+
+.abstract-section h2 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-bottom: 1em;
+  margin-top: 1.5em;
+}
+
+.abstract-section p {
+  margin-bottom: 1em;
+}
+
+.reading-pane p {
+  margin-bottom: 1em;
+}
+
+.read-full-text-container {
+  margin-top: 2em;
+  padding-top: 2em;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.read-full-text-btn {
+  display: inline-block;
+  padding: 0.75em 1.5em;
+  background-color: var(--color-accent);
+  color: white;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: opacity 0.2s;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.read-full-text-btn:active {
+  opacity: 0.8;
+}
+
+.no-full-text {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.controls-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 30;
+}
+
+.controls-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  z-index: 40;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.controls-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.close-controls {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-controls:active {
+  opacity: 0.7;
+}
+
+@media (max-width: 600px) {
+  .reader-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .reading-pane {
+    padding: 1.5rem 1rem;
+    font-size: 1rem;
+  }
+
+  .reading-pane .article-title {
+    font-size: 1.5em;
+    margin-bottom: 1.25em;
+  }
+
+  .article-metadata {
+    padding: 1em;
+    font-size: 0.85em;
+  }
+
+  .abstract-section h2 {
+    font-size: 1.1em;
+  }
+}
