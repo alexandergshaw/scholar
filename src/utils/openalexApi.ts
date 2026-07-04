@@ -109,7 +109,7 @@ export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
     title: work.display_name,
     authors: work.authorships.map(a => a.author.display_name),
     year: work.publication_year,
-    journal: work.primary_location?.source?.display_name || 'Unknown Journal',
+    journal: work.primary_location?.source?.display_name || '',
     doi: work.doi,
     isOA: work.open_access?.is_oa || false,
     oaUrl: work.open_access?.oa_url || work.best_oa_location?.pdf_url || work.best_oa_location?.landing_page_url,

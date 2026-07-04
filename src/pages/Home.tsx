@@ -30,6 +30,14 @@ export default function Home() {
         <h1>Scholar</h1>
       </div>
 
+      {/* First-launch welcome */}
+      {recents.length === 0 && (
+        <div className="home-welcome">
+          <h2>Welcome to Scholar</h2>
+          <p>Search millions of open-access papers and primary sources — and read them right here.</p>
+        </div>
+      )}
+
       {/* Search Bar */}
       <LandingSearch />
 

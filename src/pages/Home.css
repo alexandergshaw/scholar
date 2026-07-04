@@ -1,3 +1,26 @@
+.home-welcome {
+  margin: 0 1rem 1.5rem 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  background-color: var(--color-bg-secondary);
+  border-radius: 0.5rem;
+}
+
+.home-welcome h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-family: var(--font-display);
+  color: var(--color-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.home-welcome p {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
 .home-section {
   padding: 0;
 }
@@ -37,7 +60,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.2s;
-  min-height: 40px;
+  min-height: 44px;
   font-family: inherit;
 }
 
@@ -60,6 +83,6 @@
   .topic-chip {
     padding: 0.375rem 0.75rem;
     font-size: 0.8rem;
-    min-height: 36px;
+    min-height: 44px;
   }
 }

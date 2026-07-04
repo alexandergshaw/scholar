@@ -43,7 +43,7 @@ export default function ArticleCard({ article, compact = false }: ArticleCardPro
         <p className="article-authors">{article.authors.slice(0, 3).join(', ')}{article.authors.length > 3 ? ' et al.' : ''}</p>
         <div className="article-meta">
           <span className="article-year">{article.year}</span>
-          <span className="article-journal">{article.journal}</span>
+          {article.journal && article.journal !== 'Unknown Journal' && <span className="article-journal">{article.journal}</span>}
           {article.isOA && <span className="oa-badge">OA</span>}
         </div>
         {article.abstract && <p className="article-summary">{article.abstract}</p>}

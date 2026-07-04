@@ -47,10 +47,6 @@
 }
 
 @media (min-width: 600px) {
-  .nav-label {
-    display: none;
-  }
-
   .nav-icon {
     font-size: 1.25rem;
   }

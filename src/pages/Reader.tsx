@@ -163,7 +163,7 @@ export default function Reader() {
                 <span className="byline-year">{article.year}</span>
               </>
             )}
-            {article.journal && (
+            {article.journal && article.journal !== 'Unknown Journal' && (
               <>
                 <span className="byline-separator">·</span>
                 <span className="byline-journal">{article.journal}</span>
