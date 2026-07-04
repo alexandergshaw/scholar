@@ -11,7 +11,7 @@ export interface FullTextSection {
 
 export type FullTextResult =
   | { available: true; source: string; sections: FullTextSection[] }
-  | { available: false }
+  | { available: false; freeUrl?: string }
 
 interface BioCPassage {
   offset: number
@@ -82,6 +82,55 @@ async function resolvePmcId(params: {
     const data = await response.json() as { records?: Array<{ pmcid?: string }> }
     const pmcid = data.records?.[0]?.pmcid
     return pmcid || null
+  } catch {
+    return null
+  }
+}
+
+// Resolve PMCID via Europe PMC search API as a fallback
+async function resolvePmcIdViaEuropePmc(params: {
+  doi?: string
+  pmid?: string
+}): Promise<string | null> {
+  if (!params.doi && !params.pmid) return null
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000) // 8s timeout
+
+    let query: string
+    if (params.doi) {
+      const normalizedDoi = normalizeDoi(params.doi)
+      query = encodeURIComponent(`DOI:"${normalizedDoi}"`)
+    } else {
+      query = encodeURIComponent(`EXT_ID:${params.pmid} AND SRC:MED`)
+    }
+
+    const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${query}&format=json&resultType=core`
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'scholar-app' },
+      signal: controller.signal
+    })
+
+    clearTimeout(timeout)
+
+    if (!response.ok) return null
+
+    const data = await response.json() as {
+      resultList?: {
+        result?: Array<{
+          pmcid?: string
+          inEPMC?: string
+        }>
+      }
+    }
+
+    const result = data.resultList?.result?.[0]
+    if (result && result.pmcid && result.inEPMC === 'Y') {
+      return result.pmcid
+    }
+
+    return null
   } catch {
     return null
   }
@@ -427,6 +476,43 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch a free-to-read link from Unpaywall
+async function getUnpaywallFreeUrl(doi?: string): Promise<string | null> {
+  if (!doi) return null
+
+  const email = process.env.UNPAYWALL_EMAIL
+  if (!email) return null
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000) // 8s timeout
+
+    const normalizedDoi = normalizeDoi(doi)
+    const url = `https://api.unpaywall.org/v2/${encodeURIComponent(normalizedDoi)}?email=${encodeURIComponent(email)}`
+    const response = await fetch(url, { signal: controller.signal })
+
+    clearTimeout(timeout)
+
+    if (!response.ok) return null
+
+    const data = await response.json() as {
+      is_oa?: boolean
+      best_oa_location?: {
+        url_for_pdf?: string
+        url?: string
+      }
+    }
+
+    if (data.is_oa && data.best_oa_location) {
+      return data.best_oa_location.url_for_pdf || data.best_oa_location.url || null
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 // Main export: fetch full-text article from PMC, Europe PMC, then arXiv
 export async function getFullText(params: {
   pmcid?: string
@@ -436,7 +522,13 @@ export async function getFullText(params: {
 }): Promise<FullTextResult> {
   try {
     // Try PMC first
-    const pmcid = await resolvePmcId(params)
+    let pmcid = await resolvePmcId(params)
+
+    // Fallback to Europe PMC resolution if NCBI didn't find it
+    if (!pmcid) {
+      pmcid = await resolvePmcIdViaEuropePmc(params)
+    }
+
     if (pmcid) {
       // Fetch BioC JSON
       const biocData = await fetchBioCJson(pmcid)
@@ -461,12 +553,18 @@ export async function getFullText(params: {
 
     // Fallback to arXiv if PMC not available
     if (params.arxivId) {
-      return await getArxivFullText(params.arxivId)
+      const arxivResult = await getArxivFullText(params.arxivId)
+      if (arxivResult.available) {
+        return arxivResult
+      }
     }
 
-    return { available: false }
+    // All in-app attempts failed; try Unpaywall for a free link
+    const freeUrl = await getUnpaywallFreeUrl(params.doi)
+    return { available: false, ...(freeUrl ? { freeUrl } : {}) }
   } catch {
     // Wrap any unexpected errors; never throw
-    return { available: false }
+    const freeUrl = await getUnpaywallFreeUrl(params.doi)
+    return { available: false, ...(freeUrl ? { freeUrl } : {}) }
   }
 }

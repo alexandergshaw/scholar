@@ -8,52 +8,44 @@ interface SampleEntry {
   arxivId?: string
 }
 
-// Diverse sample of real identifiers
+// Sample of VERIFIED-REAL identifiers (each DOI confirmed to resolve on
+// doi.org and to exist in Unpaywall; arXiv IDs confirmed to fetch; PMCID/PMID
+// confirmed real). Do not add an identifier here without checking it resolves
+// against the live services first — fabricated IDs silently look like fallbacks
+// and corrupt the measurement.
 const SAMPLE: SampleEntry[] = [
-  // arXiv papers
+  // arXiv papers (all resolve on arxiv.org/html)
   { label: 'arXiv: Attention Is All You Need', arxivId: '1706.03762' },
   { label: 'arXiv: BERT', arxivId: '1810.04805' },
-  { label: 'arXiv: GPT-2', arxivId: '1902.10673' },
   { label: 'arXiv: Vision Transformer', arxivId: '2010.11929' },
   { label: 'arXiv: ResNet', arxivId: '1512.03385' },
-
-  // PMC/PMID open-access biomedical
-  { label: 'PMC: Open-access oncology paper', pmcid: 'PMC3257301' },
-  { label: 'PMID: PubMed central paper', pmid: '22253597' },
-  { label: 'PMID: Immunology paper', pmid: '25945375' },
-
-  // Open-access publishers (PLOS, eLife, BMC, Nature Comms)
-  { label: 'PLOS Medicine', doi: '10.1371/journal.pmed.1000097' },
-  { label: 'PLOS ONE', doi: '10.1371/journal.pone.0227181' },
-  { label: 'eLife paper', doi: '10.7554/eLife.00013' },
-  { label: 'BMC article', doi: '10.1186/gb-2007-6-8-r70' },
-  { label: 'Nature Communications OA', doi: '10.1038/s41467-021-21335-7' },
-
-  // Likely paywalled/closed (Elsevier, Springer, Wiley)
-  { label: 'Elsevier paywalled', doi: '10.1016/j.jss.2020.110843' },
-  { label: 'Springer paywalled', doi: '10.1007/978-3-319-24574-4_28' },
-  { label: 'Wiley paywalled', doi: '10.1111/j.1469-0691.2008.02129.x' },
-  { label: 'Science Translational Medicine', doi: '10.1126/scitranslmed.3004266' },
-
-  // Additional arXiv papers
   { label: 'arXiv: Transformer-XL', arxivId: '1901.02860' },
   { label: 'arXiv: ELECTRA', arxivId: '2003.10555' },
   { label: 'arXiv: RoBERTa', arxivId: '1907.11692' },
   { label: 'arXiv: XLNet', arxivId: '1906.08237' },
 
-  // Additional biomedical papers
-  { label: 'PMC: COVID-19 research', pmcid: 'PMC8139999' },
-  { label: 'PMID: Gene therapy', pmid: '31048769' },
-  { label: 'PMID: Cancer biology', pmid: '29038445' },
+  // Biomedical by PMCID/PMID (real)
+  { label: 'PMCID: PLoS Pathogens (PMC3257301)', pmcid: 'PMC3257301' },
+  { label: 'PMID: same article by PMID', pmid: '22253597' },
 
-  // Additional OA publishers
-  { label: 'Frontiers paper', doi: '10.3389/fmicb.2021.645609' },
-  { label: 'JMIR paper', doi: '10.2196/17971' },
+  // Open-access publisher DOIs (Unpaywall=OA; many resolve in-app via PMC/Europe PMC)
+  { label: 'PLOS Medicine (PRISMA)', doi: '10.1371/journal.pmed.1000097' },
+  { label: 'PLOS ONE', doi: '10.1371/journal.pone.0227181' },
+  { label: 'eLife', doi: '10.7554/eLife.00013' },
+  { label: 'Nature Communications OA', doi: '10.1038/s41467-019-09234-6' },
+  { label: 'Genome Biology (BMC)', doi: '10.1186/s13059-019-1832-y' },
   { label: 'Scientific Reports OA', doi: '10.1038/s41598-020-77291-9' },
+  { label: 'JMIR', doi: '10.2196/17971' },
+  { label: 'Frontiers in Microbiology', doi: '10.3389/fmicb.2020.560482' },
+  { label: 'BMJ (PRISMA 2020)', doi: '10.1136/bmj.n71' },
+  { label: 'PNAS', doi: '10.1073/pnas.1516684112' },
+  { label: 'Oxford Nucleic Acids Research', doi: '10.1093/nar/gkw1099' },
+  { label: 'Science (AAAS)', doi: '10.1126/science.1260419' },
 
-  // Some additional paywalled
-  { label: 'Taylor & Francis', doi: '10.1080/03610918.2019.1649288' },
-  { label: 'IEEE paywalled', doi: '10.1109/TPAMI.2016.2572683' },
+  // Publisher-hosted / mixed-access DOIs (test in-app miss + Unpaywall free link)
+  { label: 'Cell (Elsevier)', doi: '10.1016/j.cell.2011.02.013' },
+  { label: 'Algorithmica (Springer)', doi: '10.1007/s00453-019-00634-0' },
+  { label: 'IEEE TPAMI (closed)', doi: '10.1109/TPAMI.2016.2572683' },
 ]
 
 interface Measurement {
@@ -61,6 +53,7 @@ interface Measurement {
   available: boolean
   source?: string
   sectionCount: number
+  freeUrl?: string
   error?: string
 }
 
@@ -101,7 +94,8 @@ async function main() {
         results.push({
           label: entry.label,
           available: false,
-          sectionCount: 0
+          sectionCount: 0,
+          freeUrl: result.freeUrl
         })
       }
     } catch (err) {
@@ -148,6 +142,10 @@ async function main() {
       console.log(`- ${entry.label || '(unlabeled)'}`)
     }
   }
+
+  console.log('\n=== Unpaywall Free Links ===')
+  const withFreeUrl = results.filter(r => !r.available && r.freeUrl)
+  console.log(`Fallbacks with a free link (Unpaywall): ${withFreeUrl.length}`)
 
   process.exit(0)
 }

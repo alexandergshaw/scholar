@@ -257,29 +257,37 @@ export default function Reader() {
 
           {/* Read full text button and fallback link */}
           <div className="read-full-text-container">
-            {article.oaUrl ? (
-              <a
-                href={article.oaUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="read-full-text-btn"
-              >
-                <ExternalLink size={16} />
-                Read free full text
-              </a>
-            ) : article.doi ? (
-              <a
-                href={`https://doi.org/${article.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="read-full-text-btn"
-              >
-                <ExternalLink size={16} />
-                View at publisher
-              </a>
-            ) : (
-              <p className="no-full-text">Full text not available</p>
-            )}
+            {(() => {
+              // Prioritize: oaUrl from article, then freeUrl from Unpaywall fallback
+              const freeUrl = article.oaUrl || (fullText && !fullText.available ? fullText.freeUrl : undefined)
+              if (freeUrl) {
+                return (
+                  <a
+                    href={freeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="read-full-text-btn"
+                  >
+                    <ExternalLink size={16} />
+                    Read free full text
+                  </a>
+                )
+              } else if (article.doi) {
+                return (
+                  <a
+                    href={`https://doi.org/${article.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="read-full-text-btn"
+                  >
+                    <ExternalLink size={16} />
+                    View at publisher
+                  </a>
+                )
+              } else {
+                return <p className="no-full-text">Full text not available</p>
+              }
+            })()}
           </div>
         </article>
       </div>

@@ -66,7 +66,7 @@ export interface FullTextSection {
 
 export type FullTextResult =
   | { available: true; source: string; sections: FullTextSection[] }
-  | { available: false }
+  | { available: false; freeUrl?: string }
 
 /* App domain types */
 export interface Concept {
