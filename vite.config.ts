@@ -1,9 +1,34 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { getFullText } from './server/fulltextCore'
+
+const fulltextPlugin = {
+  name: 'fulltext-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/fulltext', async (req: any, res: any, next: any) => {
+      try {
+        const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+        const pmcid = url.searchParams.get('pmcid') || undefined
+        const pmid = url.searchParams.get('pmid') || undefined
+        const doi = url.searchParams.get('doi') || undefined
+
+        const result = await getFullText({ pmcid, pmid, doi })
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify(result))
+      } catch {
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify({ available: false }))
+      }
+    })
+  }
+}
 
 export default defineConfig({
   plugins: [
+    fulltextPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

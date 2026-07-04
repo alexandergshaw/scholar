@@ -37,6 +37,7 @@ export interface OpenAlexWork {
   doi?: string
   cited_by_count: number
   abstract_inverted_index?: Record<string, number[]>
+  ids?: { openalex?: string; doi?: string; mag?: string; pmid?: string; pmcid?: string }
 }
 
 export interface OpenAlexSearchResponse {
@@ -47,6 +48,16 @@ export interface OpenAlexSearchResponse {
     per_page: number
   }
 }
+
+/* Full-text types */
+export interface FullTextSection {
+  heading: string | null
+  paragraphs: string[]
+}
+
+export type FullTextResult =
+  | { available: true; source: string; sections: FullTextSection[] }
+  | { available: false }
 
 /* App domain types */
 export interface Article {
@@ -60,6 +71,8 @@ export interface Article {
   oaUrl?: string
   citedBy: number
   abstract?: string
+  pmcid?: string
+  pmid?: string
 }
 
 /* OpenAlex Autocomplete types */

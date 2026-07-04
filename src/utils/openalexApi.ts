@@ -46,6 +46,17 @@ export async function getWorkById(shortId: string): Promise<Article> {
   return mapOpenAlexWorkToArticle(work)
 }
 
+function extractPmcId(pmcid?: string): string | undefined {
+  if (!pmcid) return undefined
+  const match = pmcid.match(/PMC\d+/)
+  return match ? match[0] : undefined
+}
+
+function extractPmid(pmid?: string | number): string | undefined {
+  if (!pmid) return undefined
+  return String(pmid)
+}
+
 export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
   return {
     id: work.id,
@@ -57,7 +68,9 @@ export function mapOpenAlexWorkToArticle(work: OpenAlexWork): Article {
     isOA: work.open_access?.is_oa || false,
     oaUrl: work.open_access?.oa_url || work.best_oa_location?.pdf_url || work.best_oa_location?.landing_page_url,
     citedBy: work.cited_by_count || 0,
-    abstract: buildAbstractFromInvertedIndex(work.abstract_inverted_index)
+    abstract: buildAbstractFromInvertedIndex(work.abstract_inverted_index),
+    pmcid: extractPmcId(work.ids?.pmcid),
+    pmid: extractPmid(work.ids?.pmid)
   }
 }
 

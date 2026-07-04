@@ -4,8 +4,9 @@ import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useRecentsStore } from '../stores/recentsStore'
 import ReaderControls from '../components/ReaderControls'
-import { Article } from '../types'
+import { Article, FullTextResult } from '../types'
 import { getWorkById, shortIdOf } from '../utils/openalexApi'
+import { fetchFullText } from '../utils/fulltextApi'
 import './Reader.css'
 
 export default function Reader() {
@@ -14,6 +15,8 @@ export default function Reader() {
   const [article, setArticle] = useState<Article | null>(null)
   const [showControls, setShowControls] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fullText, setFullText] = useState<FullTextResult | null>(null)
+  const [fullTextLoading, setFullTextLoading] = useState(false)
 
   const { fontSize, fontFamily, lineSpacing } = useReaderSettingsStore()
   const { isFavorite, toggleFavorite } = useFavoritesStore()
@@ -30,6 +33,8 @@ export default function Reader() {
 
     setError(null)
     setArticle(null)
+    setFullText(null)
+    setFullTextLoading(false)
 
     const favorites = useFavoritesStore.getState().favorites
     const recents = useRecentsStore.getState().recents
@@ -57,6 +62,28 @@ export default function Reader() {
       cancelled = true
     }
   }, [articleId, addRecent])
+
+  // Load full text once the article is loaded
+  useEffect(() => {
+    if (!article) return
+
+    let cancelled = false
+
+    const loadFullText = async () => {
+      setFullTextLoading(true)
+      const result = await fetchFullText(article)
+      if (!cancelled) {
+        setFullText(result)
+        setFullTextLoading(false)
+      }
+    }
+
+    loadFullText()
+
+    return () => {
+      cancelled = true
+    }
+  }, [article?.id])
 
   if (error) {
     return (
@@ -154,15 +181,43 @@ export default function Reader() {
             )}
           </div>
 
-          {/* Abstract */}
-          {article.abstract && (
+          {/* Full text content or abstract */}
+          {fullTextLoading && (
+            <div className="fulltext-loading">
+              <p>Loading full text…</p>
+            </div>
+          )}
+
+          {fullText && fullText.available && (
+            <>
+              <div className="fulltext-source">
+                <p>Full text via {fullText.source}</p>
+              </div>
+              <div className="fulltext-sections">
+                {fullText.sections.map((section, idx) => (
+                  <div key={idx} className="fulltext-section">
+                    {section.heading && (
+                      <h2 className="section-heading">{section.heading}</h2>
+                    )}
+                    {section.paragraphs.map((paragraph, pidx) => (
+                      <p key={pidx} className="section-paragraph">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {!fullTextLoading && !fullText?.available && article.abstract && (
             <div className="abstract-section">
               <h2>Abstract</h2>
               <p>{article.abstract}</p>
             </div>
           )}
 
-          {/* Read full text button */}
+          {/* Read full text button and fallback link */}
           {article.oaUrl ? (
             <div className="read-full-text-container">
               <a
@@ -171,7 +226,7 @@ export default function Reader() {
                 rel="noopener noreferrer"
                 className="read-full-text-btn"
               >
-                Read full text
+                Read full text (external)
               </a>
             </div>
           ) : (
