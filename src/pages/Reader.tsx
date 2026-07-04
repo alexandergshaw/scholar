@@ -268,6 +268,18 @@ export default function Reader() {
             </div>
           )}
 
+          {/* Inline embed of the OA copy when extraction also failed */}
+          {fullText && !fullText.available && fullText.freeUrl && !extracting && (
+            <div className="oa-embed-container">
+              <p className="fulltext-source">Showing the open-access copy inline.</p>
+              <iframe
+                className="oa-embed"
+                src={`/api/proxy?url=${encodeURIComponent(fullText.freeUrl)}`}
+                title="Open-access full text"
+              />
+            </div>
+          )}
+
           {/* Read full text button and fallback link */}
           <div className="read-full-text-container">
             {(() => {

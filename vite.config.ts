@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { getFullText } from './server/fulltextCore'
 import { extractOaFullText } from './server/oaExtractCore'
+import { fetchProxied } from './server/proxyCore'
 import { searchPrimarySources } from './server/primarySources'
 import { getPrimaryText } from './server/primaryText'
 import { askGemini } from './server/askCore'
@@ -56,6 +57,41 @@ const oaExtractPlugin = {
         res.setHeader('Content-Type', 'application/json')
         res.statusCode = 200
         res.end(JSON.stringify({ available: false }))
+      }
+    })
+  }
+}
+
+const proxyPlugin = {
+  name: 'oa-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/proxy', async (req: any, res: any, next: any) => {
+      try {
+        const url = new URL(req.originalUrl, `http://${req.headers.host}`)
+        const target = url.searchParams.get('url') || undefined
+
+        if (!target) {
+          res.statusCode = 400
+          res.end()
+          return
+        }
+
+        const result = await fetchProxied(target)
+        if (!result.ok) {
+          res.statusCode = 502
+          res.end()
+          return
+        }
+
+        res.setHeader('Content-Type', result.contentType)
+        res.setHeader('Content-Disposition', 'inline') // so PDFs render, not download
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'self'")
+        res.statusCode = 200
+        res.end(Buffer.from(result.body))
+      } catch {
+        res.statusCode = 502
+        res.end()
       }
     })
   }
@@ -210,6 +246,7 @@ export default defineConfig({
   plugins: [
     fulltextPlugin,
     oaExtractPlugin,
+    proxyPlugin,
     primaryPlugin,
     primaryTextPlugin,
     askPlugin,

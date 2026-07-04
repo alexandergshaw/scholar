@@ -162,6 +162,18 @@
   position: relative;
 }
 
+.oa-embed-container {
+  margin-top: 16px;
+}
+
+.oa-embed {
+  width: 100%;
+  height: 80vh;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
 .read-full-text-container {
   margin-top: 2em;
   padding-top: 2em;

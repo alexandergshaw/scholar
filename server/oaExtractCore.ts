@@ -15,7 +15,7 @@ export type FullTextResult =
   | { available: false; freeUrl?: string }
 
 // SSRF guard: reject unsafe URLs (loopback, private networks, etc.)
-function isSafePublicUrl(url: string): boolean {
+export function isSafePublicUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
 
