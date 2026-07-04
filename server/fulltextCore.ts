@@ -7,7 +7,14 @@
 // serverless runtime because it can't resolve the `HTMLElement` named export
 // from a CommonJS module (FUNCTION_INVOCATION_FAILED). HTMLElement is only used
 // as a type, so import it type-only (erased at runtime).
+// node-html-parser is CJS. Import the package default (= module.exports) and
+// read `parse` off it — reliable across Vercel's serverless CJS/ESM interop.
+// A named import (`{ parse, HTMLElement }`) crashes the function at load, and a
+// dynamic `import()` yields an undefined `parse` there; the default import does
+// neither. HTMLElement is used only as a type (erased at runtime).
+import htmlParserPkg from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
+const parse = ((htmlParserPkg as any).parse ?? htmlParserPkg) as typeof import('node-html-parser').parse
 
 export interface FullTextSection {
   heading: string | null
@@ -225,7 +232,6 @@ async function getEuropePmcFullText(pmcid: string): Promise<FullTextResult> {
       return { available: false }
     }
 
-    const { parse } = await import('node-html-parser')
     const root = parse(xml)
     const sections: FullTextSection[] = []
     const seen = new Set<string>()
@@ -352,7 +358,6 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
       return { available: false }
     }
 
-    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Pre-clean: replace math elements with their alttext

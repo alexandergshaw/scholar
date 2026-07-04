@@ -4,7 +4,15 @@
 
 // Default-import the CJS module (see note in fulltextCore.ts): a named import of
 // `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
+// See note in fulltextCore.ts: default-import node-html-parser (CJS) and read
+// `parse` off it for Vercel serverless CJS/ESM interop. HTMLElement type-only.
+import htmlParserPkg from 'node-html-parser'
 import type { HTMLElement } from 'node-html-parser'
+const parse = ((htmlParserPkg as any).parse ?? htmlParserPkg) as typeof import('node-html-parser').parse
+// Runtime HTMLElement constructor (for `instanceof`), obtained the CJS-safe way.
+// A named `import { HTMLElement }` crashes Vercel; `import type` erases it, which
+// breaks the runtime `instanceof` checks below.
+const HTMLElementCtor = (htmlParserPkg as any).HTMLElement
 import type { FullTextSection, FullTextResult } from '../src/types'
 // Lazy loaders: the PDF/OA extraction path pulls in a heavy pdf.js dependency
 // (unpdf, via oaExtractCore). Import it dynamically only when an extraction-based
@@ -331,7 +339,6 @@ async function getWikisourceText(id: string): Promise<FullTextResult> {
       return { available: false }
     }
 
-    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Remove cruft that would pollute the reading text
@@ -391,7 +398,7 @@ async function getWikisourceText(id: string): Promise<FullTextResult> {
 
       // Recurse into children
       for (const child of node.childNodes) {
-        if (child instanceof HTMLElement) {
+        if (child instanceof HTMLElementCtor) {
           walkNode(child)
         }
       }
@@ -438,7 +445,6 @@ async function getTheConversationText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
-    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Find the article body
@@ -493,7 +499,7 @@ async function getTheConversationText(id: string): Promise<FullTextResult> {
 
       // Recurse into children
       for (const child of node.childNodes) {
-        if (child instanceof HTMLElement) {
+        if (child instanceof HTMLElementCtor) {
           walkNode(child)
         }
       }
@@ -564,7 +570,6 @@ async function getStandardEbooksText(id: string): Promise<FullTextResult> {
     }
 
     const html = await response.text()
-    const { parse } = await import('node-html-parser')
     const root = parse(html)
 
     // Content root: body or root
@@ -615,7 +620,7 @@ async function getStandardEbooksText(id: string): Promise<FullTextResult> {
 
       // Recurse into children
       for (const child of node.childNodes) {
-        if (child instanceof HTMLElement) {
+        if (child instanceof HTMLElementCtor) {
           walkNode(child)
         }
       }
