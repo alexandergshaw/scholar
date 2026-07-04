@@ -5,6 +5,7 @@ import { getFullText } from './server/fulltextCore'
 import { searchPrimarySources } from './server/primarySources'
 import { getPrimaryText } from './server/primaryText'
 import { askGemini } from './server/askCore'
+import { synthesize } from './server/ttsCore'
 
 const fulltextPlugin = {
   name: 'fulltext-proxy',
@@ -124,12 +125,64 @@ const askPlugin = {
   }
 }
 
+const ttsPlugin = {
+  name: 'tts-proxy',
+  configureServer(server: any) {
+    server.middlewares.use('/api/tts', async (req: any, res: any, next: any) => {
+      try {
+        // Only handle POST requests
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('Method not allowed')
+          return
+        }
+
+        // Read body chunks
+        let body = ''
+        await new Promise<void>((resolve, reject) => {
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          req.on('end', () => {
+            resolve()
+          })
+          req.on('error', reject)
+        })
+
+        // Parse JSON
+        let data
+        try {
+          data = JSON.parse(body || '{}')
+        } catch {
+          res.setHeader('Content-Type', 'application/json')
+          res.statusCode = 200
+          res.end(JSON.stringify({ configured: true, error: 'Bad request.' }))
+          return
+        }
+
+        const { text, voice, languageCode, rate, pitch } = data
+
+        // Call synthesize
+        const result = await synthesize({ text, voice, languageCode, rate, pitch })
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify(result))
+      } catch {
+        res.setHeader('Content-Type', 'application/json')
+        res.statusCode = 200
+        res.end(JSON.stringify({ configured: true, error: 'TTS request failed.' }))
+      }
+    })
+  }
+}
+
 export default defineConfig({
   plugins: [
     fulltextPlugin,
     primaryPlugin,
     primaryTextPlugin,
     askPlugin,
+    ttsPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

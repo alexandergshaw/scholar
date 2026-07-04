@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTts } from '../hooks/useTts'
+import { useCloudTts, CURATED_CLOUD_VOICES } from '../hooks/useCloudTts'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
 import './ListenBar.css'
 
@@ -37,25 +38,53 @@ function naturalnessRank(voice: SpeechSynthesisVoice): number {
 
 export default function ListenBar({ getText }: ListenBarProps) {
   const { supported, sortedVoices, speaking, paused, speak, pause, resume, stop } = useTts()
-  const { voiceURI, rate, pitch, setVoiceURI, setRate, setPitch } = useTtsSettingsStore()
+  const { speaking: cloudSpeaking, paused: cloudPaused, loading: cloudLoading, error: cloudError, speak: cloudSpeak, pause: cloudPause, resume: cloudResume, stop: cloudStop } = useCloudTts()
+  const { voiceURI, rate, pitch, engine, cloudVoice, setVoiceURI, setRate, setPitch, setEngine, setCloudVoice } = useTtsSettingsStore()
   const [showSettings, setShowSettings] = useState(false)
 
   if (!supported) {
     return null
   }
 
+  // Use active engine's state and controls
+  const isActive = engine === 'device'
+  const activeSpeaking = isActive ? speaking : cloudSpeaking
+  const activePaused = isActive ? paused : cloudPaused
+  const activeLoading = isActive ? false : cloudLoading
+  const activeError = isActive ? null : cloudError
+
   const handleListen = () => {
     const text = getText()
     if (text) {
-      speak(text)
+      if (engine === 'device') {
+        speak(text)
+      } else {
+        cloudSpeak(text)
+      }
     }
   }
 
   const togglePlayPause = () => {
-    if (paused) {
-      resume()
+    if (engine === 'device') {
+      if (paused) {
+        resume()
+      } else {
+        pause()
+      }
     } else {
-      pause()
+      if (cloudPaused) {
+        cloudResume()
+      } else {
+        cloudPause()
+      }
+    }
+  }
+
+  const handleStop = () => {
+    if (engine === 'device') {
+      stop()
+    } else {
+      cloudStop()
     }
   }
 
@@ -66,7 +95,11 @@ export default function ListenBar({ getText }: ListenBarProps) {
   return (
     <div className="listen-bar">
       <div className="listen-controls">
-        {!speaking ? (
+        {activeLoading ? (
+          <button className="listen-button" disabled title="Preparing audio...">
+            ⏳ Preparing...
+          </button>
+        ) : !activeSpeaking ? (
           <button
             className="listen-button"
             onClick={handleListen}
@@ -79,13 +112,13 @@ export default function ListenBar({ getText }: ListenBarProps) {
             <button
               className="listen-button playing"
               onClick={togglePlayPause}
-              title={paused ? 'Resume' : 'Pause'}
+              title={activePaused ? 'Resume' : 'Pause'}
             >
-              {paused ? '▶' : '⏸'} {paused ? 'Resume' : 'Pause'}
+              {activePaused ? '▶' : '⏸'} {activePaused ? 'Resume' : 'Pause'}
             </button>
             <button
               className="listen-button stop"
-              onClick={stop}
+              onClick={handleStop}
               title="Stop"
             >
               ⏹ Stop
@@ -104,36 +137,74 @@ export default function ListenBar({ getText }: ListenBarProps) {
 
       {showSettings && (
         <div className="voice-settings-panel">
+          {activeError && (
+            <div className="ask-error" style={{ marginBottom: '12px', fontSize: '0.9em' }}>
+              {activeError}
+            </div>
+          )}
+
           <div className="settings-section">
-            <label className="settings-label">Voice</label>
-            {sortedVoices.length > 0 ? (
+            <label className="settings-label">Engine</label>
+            <div className="tts-engine-toggle">
+              <button
+                className={`tts-engine-btn${engine === 'device' ? ' active' : ''}`}
+                onClick={() => setEngine('device')}
+              >
+                Device
+              </button>
+              <button
+                className={`tts-engine-btn${engine === 'cloud' ? ' active' : ''}`}
+                onClick={() => setEngine('cloud')}
+              >
+                Natural (cloud)
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <label className="settings-label">{engine === 'device' ? 'Voice' : 'Natural Voice'}</label>
+            {engine === 'device' ? (
+              sortedVoices.length > 0 ? (
+                <select
+                  className="voice-select"
+                  value={voiceURI || ''}
+                  onChange={(e) => setVoiceURI(e.target.value || null)}
+                >
+                  <option value="">System default</option>
+                  {naturalVoices.length > 0 && (
+                    <optgroup label="Natural voices">
+                      {naturalVoices.map((voice) => (
+                        <option key={voice.voiceURI} value={voice.voiceURI}>
+                          {voice.name} ({voice.lang})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {otherVoices.length > 0 && (
+                    <optgroup label="Other voices">
+                      {otherVoices.map((voice) => (
+                        <option key={voice.voiceURI} value={voice.voiceURI}>
+                          {voice.name} ({voice.lang})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              ) : (
+                <p className="no-voices-message">No voices available on this device</p>
+              )
+            ) : (
               <select
                 className="voice-select"
-                value={voiceURI || ''}
-                onChange={(e) => setVoiceURI(e.target.value || null)}
+                value={cloudVoice}
+                onChange={(e) => setCloudVoice(e.target.value)}
               >
-                <option value="">System default</option>
-                {naturalVoices.length > 0 && (
-                  <optgroup label="Natural voices">
-                    {naturalVoices.map((voice) => (
-                      <option key={voice.voiceURI} value={voice.voiceURI}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {otherVoices.length > 0 && (
-                  <optgroup label="Other voices">
-                    {otherVoices.map((voice) => (
-                      <option key={voice.voiceURI} value={voice.voiceURI}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
+                {CURATED_CLOUD_VOICES.map((voice) => (
+                  <option key={voice.id} value={voice.id}>
+                    {voice.label}
+                  </option>
+                ))}
               </select>
-            ) : (
-              <p className="no-voices-message">No voices available on this device</p>
             )}
           </div>
 
