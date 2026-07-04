@@ -249,18 +249,35 @@ export default function LandingSearch() {
           {/* Suggestions dropdown */}
           {showDropdown && suggestions.length > 0 && (
             <div className="suggestions-dropdown" id="search-suggestions" role="listbox">
-              {suggestions.map((suggestion, idx) => (
-                <div
-                  key={suggestion.id}
-                  className={`suggestion-item ${idx === selectedIndex ? 'selected' : ''}`}
-                  onClick={() => selectSuggestion(suggestion)}
-                  role="option"
-                  aria-selected={idx === selectedIndex}
-                >
-                  <div className="suggestion-label">{suggestion.display_name}</div>
-                  {suggestion.hint && <div className="suggestion-hint">{suggestion.hint}</div>}
-                </div>
-              ))}
+              {suggestions.map((suggestion, idx) => {
+                let secondaryText: string | null = null
+
+                if (mode === 'authors') {
+                  // For authors: always show works count and citation count
+                  const metrics = `${(suggestion.works_count ?? 0).toLocaleString()} works · ${(suggestion.cited_by_count ?? 0).toLocaleString()} citations`
+                  if (suggestion.hint && suggestion.hint.trim()) {
+                    secondaryText = `${suggestion.hint} · ${metrics}`
+                  } else {
+                    secondaryText = metrics
+                  }
+                } else {
+                  // For articles and topics: show hint only if present
+                  secondaryText = suggestion.hint
+                }
+
+                return (
+                  <div
+                    key={suggestion.id}
+                    className={`suggestion-item ${idx === selectedIndex ? 'selected' : ''}`}
+                    onClick={() => selectSuggestion(suggestion)}
+                    role="option"
+                    aria-selected={idx === selectedIndex}
+                  >
+                    <div className="suggestion-label">{suggestion.display_name}</div>
+                    {secondaryText && <div className="suggestion-hint">{secondaryText}</div>}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

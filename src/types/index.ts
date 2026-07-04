@@ -69,6 +69,7 @@ export interface AutocompleteResult {
   hint: string | null
   cited_by_count: number
   entity_type: string
+  works_count: number
 }
 
 export interface OpenAlexAutocompleteResponse {
