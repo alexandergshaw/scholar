@@ -9,6 +9,7 @@ export default function Search() {
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('query') || '')
   const [author, setAuthor] = useState(searchParams.get('author') || '')
+  const [authorId] = useState(searchParams.get('authorId') || '')
   const [topic, setTopic] = useState(searchParams.get('topic') || '')
   const [yearFrom, setYearFrom] = useState(searchParams.get('yearFrom') || '')
   const [yearTo, setYearTo] = useState(searchParams.get('yearTo') || '')
@@ -22,7 +23,7 @@ export default function Search() {
   const [hasSearched, setHasSearched] = useState(false)
 
   const performSearch = async (pageNum: number = 1) => {
-    const hasQuery = query || author || topic
+    const hasQuery = query || author || authorId || topic
 
     if (!hasQuery) {
       setError(null)
@@ -39,6 +40,7 @@ export default function Search() {
       const result = await searchWorks({
         query: query || undefined,
         author: author || undefined,
+        authorId: authorId || undefined,
         topic: topic || undefined,
         yearFrom: yearFrom ? parseInt(yearFrom) : undefined,
         yearTo: yearTo ? parseInt(yearTo) : undefined,

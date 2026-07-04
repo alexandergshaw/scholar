@@ -62,6 +62,19 @@ export interface Article {
   abstract?: string
 }
 
+/* OpenAlex Autocomplete types */
+export interface AutocompleteResult {
+  id: string
+  display_name: string
+  hint: string | null
+  cited_by_count: number
+  entity_type: string
+}
+
+export interface OpenAlexAutocompleteResponse {
+  results: AutocompleteResult[]
+}
+
 export type Theme = 'light' | 'sepia' | 'dark'
 export type FontFamily = 'serif' | 'sans'
 

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useRecentsStore } from '../stores/recentsStore'
+import LandingSearch from '../components/LandingSearch'
 import ArticleCard from '../components/ArticleCard'
 import './Home.css'
 
@@ -28,6 +29,9 @@ export default function Home() {
       <div className="page-header">
         <h1>Scholar</h1>
       </div>
+
+      {/* Search Bar */}
+      <LandingSearch />
 
       {/* Recently Read */}
       {recents.length > 0 && (

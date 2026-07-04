@@ -1,4 +1,4 @@
-import { OpenAlexWork, OpenAlexSearchResponse, Article } from '../types'
+import { OpenAlexWork, OpenAlexSearchResponse, Article, AutocompleteResult, OpenAlexAutocompleteResponse } from '../types'
 
 const BASE_URL = 'https://api.openalex.org'
 const MAILTO = 'scholar-app@example.com'
@@ -6,6 +6,7 @@ const MAILTO = 'scholar-app@example.com'
 export interface SearchParams {
   query?: string
   author?: string
+  authorId?: string
   topic?: string
   yearFrom?: number
   yearTo?: number
@@ -72,12 +73,16 @@ export async function searchWorks(params: SearchParams): Promise<{ articles: Art
     filters.push(`publication_year:${from}-${to}`)
   }
 
+  if (params.authorId) {
+    filters.push(`authorships.author.id:${params.authorId}`)
+  }
+
   let url = `${BASE_URL}/works?mailto=${MAILTO}`
 
   // OpenAlex accepts a single `search` param. Combine the provided fields into
   // one full-text query so that query + author + topic AND together instead of
-  // silently overwriting each other.
-  const searchTerms = [params.query, params.author, params.topic]
+  // silently overwriting each other. If authorId is set, ignore free-text author.
+  const searchTerms = [params.query, params.authorId ? undefined : params.author, params.topic]
     .filter(Boolean)
     .join(' ')
   if (searchTerms) {
@@ -112,4 +117,26 @@ export async function searchByTopic(topic: string, page: number = 1): Promise<{ 
 
 export async function searchByAuthor(author: string, page: number = 1): Promise<{ articles: Article[]; total: number }> {
   return searchWorks({ author, page, perPage: 25 })
+}
+
+export async function autocomplete(mode: 'topics' | 'articles' | 'authors', q: string): Promise<AutocompleteResult[]> {
+  const endpoints: Record<string, string> = {
+    topics: 'concepts',
+    articles: 'works',
+    authors: 'authors'
+  }
+
+  const endpoint = endpoints[mode]
+  const url = `${BASE_URL}/autocomplete/${endpoint}?q=${encodeURIComponent(q)}&mailto=${MAILTO}`
+
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      return []
+    }
+    const data: OpenAlexAutocompleteResponse = await response.json()
+    return data.results
+  } catch (err) {
+    return []
+  }
 }
