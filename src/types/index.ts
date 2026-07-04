@@ -121,9 +121,10 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar' | 'CORE'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar' | 'CORE' | 'Stanford Encyclopedia'
   snippet?: string
   readUrl: string
+  externalOnly?: boolean
 }
 
 export interface PrimarySourcesResponse {

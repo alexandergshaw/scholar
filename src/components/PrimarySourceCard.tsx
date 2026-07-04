@@ -47,10 +47,12 @@ export default function PrimarySourceCard({ source }: PrimarySourceCardProps) {
         <Star size={18} fill={isPrimaryFavorite(source.id) ? 'currentColor' : 'none'} />
       </button>
       <div className="primary-actions">
-        <button className="primary-read-link primary-inline" onClick={handleReadInline}>
-          <BookOpen size={16} />
-          Read inline
-        </button>
+        {!source.externalOnly && (
+          <button className="primary-read-link primary-inline" onClick={handleReadInline}>
+            <BookOpen size={16} />
+            Read inline
+          </button>
+        )}
         <a
           className="primary-read-link primary-external"
           href={source.readUrl}

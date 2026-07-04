@@ -240,6 +240,21 @@
   color: #dc2626;
 }
 
+.source-stanford-encyclopedia {
+  background-color: rgba(124, 58, 255, 0.12);
+  color: #7c3aff;
+}
+
+.theme-dark .source-stanford-encyclopedia {
+  background-color: rgba(165, 120, 255, 0.15);
+  color: #a578ff;
+}
+
+.theme-sepia .source-stanford-encyclopedia {
+  background-color: rgba(124, 58, 255, 0.12);
+  color: #7c3aff;
+}
+
 .primary-snippet {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

@@ -7,9 +7,10 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar' | 'CORE'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia' | 'Wikisource' | 'The Conversation' | 'DOAJ' | 'OAPEN' | 'Standard Ebooks' | 'Preprints' | 'Semantic Scholar' | 'CORE' | 'Stanford Encyclopedia'
   snippet?: string
   readUrl: string
+  externalOnly?: boolean
 }
 
 // Helper to coerce a value to a single string (join arrays)
@@ -757,6 +758,73 @@ async function fetchCore(query: string, page: number): Promise<PrimarySource[]> 
   }
 }
 
+// Stanford Encyclopedia of Philosophy API
+async function fetchStanfordEncyclopedia(query: string, page: number): Promise<PrimarySource[]> {
+  // SEP search is not paginated, only fetch page 1
+  if (page > 1) return []
+
+  try {
+    const url = new URL('https://plato.stanford.edu/search/searcher.py')
+    url.searchParams.append('query', query)
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (scholar-app)'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const html = await response.text()
+    const { parse } = await import('node-html-parser')
+    const root = parse(html)
+
+    const results: PrimarySource[] = []
+    const seenSlugs = new Set<string>()
+
+    // Each result is <div class="result_title"><a class="l" href="...">Title</a></div>
+    const anchors = root.querySelectorAll('.result_title a')
+
+    for (const a of anchors) {
+      const href = a.getAttribute('href') || ''
+      // Extract slug from href like: https://plato.stanford.edu/search/r?entry=/entries/<slug>/&...
+      const m = href.match(/entry=\/entries\/([a-z0-9-]+)\//)
+      if (!m) continue
+
+      const slug = m[1]
+      if (seenSlugs.has(slug)) continue
+
+      // Extract title, stripping inner <b> tags
+      const titleNode = a.text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+      if (!titleNode) continue
+
+      seenSlugs.add(slug)
+
+      results.push({
+        id: 'sep:' + slug,
+        title: titleNode,
+        creator: undefined,
+        date: undefined,
+        sourceName: 'Stanford Encyclopedia' as const,
+        snippet: undefined,
+        readUrl: 'https://plato.stanford.edu/entries/' + slug + '/',
+        externalOnly: true
+      })
+
+      if (results.length >= 10) break
+    }
+
+    return results
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -778,7 +846,8 @@ export async function searchPrimarySources(
     fetchStandardEbooks(query, page),
     fetchPreprints(query, page),
     fetchSemanticScholar(query, page),
-    fetchCore(query, page)
+    fetchCore(query, page),
+    fetchStanfordEncyclopedia(query, page)
   ])
 
   const sources: PrimarySource[][] = []
