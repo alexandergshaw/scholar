@@ -105,6 +105,21 @@
   color: #7a5c3e;
 }
 
+.source-wikipedia {
+  background-color: rgba(83, 109, 254, 0.12);
+  color: #536dfe;
+}
+
+.theme-dark .source-wikipedia {
+  background-color: rgba(120, 139, 255, 0.15);
+  color: #788bff;
+}
+
+.theme-sepia .source-wikipedia {
+  background-color: rgba(129, 109, 200, 0.12);
+  color: #816dc8;
+}
+
 .primary-snippet {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

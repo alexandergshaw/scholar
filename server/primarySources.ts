@@ -7,7 +7,7 @@ export interface PrimarySource {
   title: string
   creator?: string
   date?: string
-  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America'
+  sourceName: 'Project Gutenberg' | 'Internet Archive' | 'Chronicling America' | 'Wikipedia'
   snippet?: string
   readUrl: string
 }
@@ -178,6 +178,64 @@ async function fetchChroniclingAmerica(query: string, page: number): Promise<Pri
   }
 }
 
+// Wikipedia API
+async function fetchWikipedia(query: string, page: number): Promise<PrimarySource[]> {
+  try {
+    const url = new URL('https://en.wikipedia.org/w/api.php')
+    url.searchParams.append('action', 'query')
+    url.searchParams.append('list', 'search')
+    url.searchParams.append('format', 'json')
+    url.searchParams.append('srlimit', '10')
+    url.searchParams.append('srsearch', query)
+    url.searchParams.append('sroffset', String((page - 1) * 10))
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'scholar-app'
+      }
+    })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) return []
+
+    const data = await response.json() as {
+      query?: {
+        search?: Array<{
+          title: string
+          snippet: string
+          pageid: number
+        }>
+      }
+    }
+
+    if (!data.query?.search) return []
+
+    return data.query.search.map(item => {
+      const snippet = item.snippet
+        .replace(/<[^>]+>/g, '')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .trim()
+
+      return {
+        id: `wikipedia:${item.title}`,
+        title: item.title,
+        creator: undefined,
+        date: undefined,
+        sourceName: 'Wikipedia' as const,
+        snippet: snippet || undefined,
+        readUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, '_'))}`
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
 // Main aggregator: query all three sources in parallel, merge round-robin
 export async function searchPrimarySources(
   query: string,
@@ -190,7 +248,8 @@ export async function searchPrimarySources(
   const results = await Promise.allSettled([
     fetchGutenberg(query, page),
     fetchInternetArchive(query, page),
-    fetchChroniclingAmerica(query, page)
+    fetchChroniclingAmerica(query, page),
+    fetchWikipedia(query, page)
   ])
 
   const sources: PrimarySource[][] = []

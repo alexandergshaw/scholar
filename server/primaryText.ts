@@ -222,6 +222,61 @@ async function getChroniclingAmericaText(id: string): Promise<FullTextResult> {
   }
 }
 
+// Fetch from Wikipedia
+async function getWikipediaText(id: string): Promise<FullTextResult> {
+  try {
+    const title = id.replace(/^wikipedia:/, '')
+
+    const url = new URL('https://en.wikipedia.org/w/api.php')
+    url.searchParams.append('action', 'query')
+    url.searchParams.append('prop', 'extracts')
+    url.searchParams.append('explaintext', '1')
+    url.searchParams.append('redirects', '1')
+    url.searchParams.append('format', 'json')
+    url.searchParams.append('titles', title)
+
+    const response = await fetchWithTimeout(url.toString(), {
+      headers: {
+        'User-Agent': 'scholar-app'
+      }
+    })
+
+    if (!response.ok) {
+      return { available: false }
+    }
+
+    const data = await response.json() as {
+      query?: {
+        pages?: Record<string, { extract?: string }>
+      }
+    }
+
+    const pages = data.query?.pages
+    if (!pages) {
+      return { available: false }
+    }
+
+    const pageData = Object.values(pages)[0]
+    if (!pageData?.extract) {
+      return { available: false }
+    }
+
+    const sections = textToSections(pageData.extract)
+
+    if (sections.length === 0) {
+      return { available: false }
+    }
+
+    return {
+      available: true,
+      source: 'Wikipedia',
+      sections
+    }
+  } catch {
+    return { available: false }
+  }
+}
+
 // Main export: fetch primary source text
 export async function getPrimaryText(id: string): Promise<FullTextResult> {
   try {
@@ -231,6 +286,8 @@ export async function getPrimaryText(id: string): Promise<FullTextResult> {
       return await getInternetArchiveText(id)
     } else if (id.startsWith('chronam:')) {
       return await getChroniclingAmericaText(id)
+    } else if (id.startsWith('wikipedia:')) {
+      return await getWikipediaText(id)
     } else {
       return { available: false }
     }
