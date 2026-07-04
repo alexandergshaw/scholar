@@ -112,7 +112,7 @@ export default function Settings() {
 
           <div className="settings-group">
             <label className="setting-label">Clear all data</label>
-            <p className="setting-description">Delete all saved articles and reading history.</p>
+            <p className="setting-description">Delete all saved articles, sources, and reading history.</p>
             {!showClearConfirm ? (
               <button className="danger-btn" onClick={() => setShowClearConfirm(true)}>
                 Clear data
