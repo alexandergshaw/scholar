@@ -1,7 +1,7 @@
 // Vercel/serverless handler for ask API
 // Runs only in production; not used during dev
 
-import { askGemini } from '../server/askCore'
+import { askGemini } from '../server/askCore.js'
 
 export default async function handler(req: any, res: any) {
   try {

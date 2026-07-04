@@ -1,7 +1,7 @@
 // Vercel/serverless handler for TTS API
 // Runs only in production; not used during dev
 
-import { synthesize } from '../server/ttsCore'
+import { synthesize } from '../server/ttsCore.js'
 
 export default async function handler(req: any, res: any) {
   try {

@@ -1,7 +1,7 @@
 // Vercel/serverless handler for primary sources API
 // Runs only in production; not used during dev
 
-import { searchPrimarySources } from '../server/primarySources'
+import { searchPrimarySources } from '../server/primarySources.js'
 
 export default async function handler(req: any, res: any) {
   try {

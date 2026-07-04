@@ -1,7 +1,7 @@
 // Vercel/serverless handler for full-text API
 // Runs only in production; not used during dev
 
-import { getFullText } from '../server/fulltextCore'
+import { getFullText } from '../server/fulltextCore.js'
 
 export default async function handler(req: any, res: any) {
   try {

@@ -2,7 +2,7 @@
 // This file is imported by both the Vite dev middleware and serverless functions
 // Keep it free of React/Vite imports so it can run on Node.js only
 
-import { FullTextSection, FullTextResult } from '../src/types'
+import type { FullTextSection, FullTextResult } from '../src/types'
 
 // Helper: fetch with timeout
 async function fetchWithTimeout(
