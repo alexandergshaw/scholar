@@ -328,7 +328,6 @@ async function fetchTheConversation(query: string, page: number): Promise<Primar
     if (!response.ok) return []
 
     const html = await response.text()
-    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Find all anchors and filter by href pattern
@@ -532,7 +531,6 @@ async function fetchStandardEbooks(query: string, page: number): Promise<Primary
     if (!response.ok) return []
 
     const html = await response.text()
-    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Find all anchors and filter by href pattern
@@ -793,7 +791,6 @@ async function fetchStanfordEncyclopedia(query: string, page: number): Promise<P
     if (!response.ok) return []
 
     const html = await response.text()
-    const { parse } = await loadHtml()
     const root = parse(html)
 
     const results: PrimarySource[] = []

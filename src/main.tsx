@@ -4,7 +4,7 @@ import App from './App'
 import './index.css'
 
 // Build marker (helps confirm a deploy landed; harmless).
-document.documentElement.dataset.build = 'cjs-fix'
+document.documentElement.dataset.build = 'createrequire'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -6,15 +6,9 @@
 // `HTMLElement` crashes Vercel's ESM serverless runtime. Type-only for the type.
 // See note in fulltextCore.ts: node-html-parser (CJS) must be loaded via a lazy
 // dynamic import, reading `parse` off `.default` for Vercel's ESM interop.
+import { createRequire } from 'module'
 import type { HTMLElement } from 'node-html-parser'
-let _htmlLib: { parse: typeof import('node-html-parser').parse } | null = null
-async function loadHtml() {
-  if (!_htmlLib) {
-    const m: any = await import('node-html-parser')
-    _htmlLib = { parse: m.parse ?? m.default?.parse ?? m.default }
-  }
-  return _htmlLib
-}
+const { parse } = createRequire(import.meta.url)('node-html-parser') as typeof import('node-html-parser')
 import { extractText, getDocumentProxy } from 'unpdf'
 
 export interface FullTextSection {
@@ -83,9 +77,8 @@ async function extractTextFromPdf(arrayBuffer: ArrayBuffer): Promise<string | nu
 }
 
 // Extract text from HTML using node-html-parser
-async function extractTextFromHtml(html: string): Promise<FullTextResult> {
+function extractTextFromHtml(html: string): FullTextResult {
   try {
-    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Remove unwanted elements
@@ -288,7 +281,7 @@ export async function extractOaFullText(rawUrl: string): Promise<FullTextResult>
         return { available: false }
       }
 
-      return await extractTextFromHtml(html)
+      return extractTextFromHtml(html)
     }
   } catch {
     // Never throw; always return unavailable

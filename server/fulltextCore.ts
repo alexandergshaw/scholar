@@ -2,25 +2,14 @@
 // This file is imported by both the Vite dev middleware and serverless functions
 // Keep it free of React/Vite imports so it can run on Node.js only
 
-// Default-import the CJS module and read `parse` off it. A static named import
-// (`import { parse, HTMLElement } from 'node-html-parser'`) crashes Vercel's ESM
-// serverless runtime because it can't resolve the `HTMLElement` named export
-// from a CommonJS module (FUNCTION_INVOCATION_FAILED). HTMLElement is only used
-// as a type, so import it type-only (erased at runtime).
-// node-html-parser is CJS. A STATIC import (named OR default) crashes Vercel's
-// ESM serverless runtime at load (FUNCTION_INVOCATION_FAILED). A dynamic import
-// loads fine, but Vercel's interop leaves the named `parse` undefined — the real
-// exports live on `.default` (= module.exports). Load lazily and read from
-// `.default` with fallbacks so it works in dev (tsx/Vite) and on Vercel.
+// node-html-parser is CJS. Load it with createRequire: a static ESM import
+// crashes Vercel's ESM serverless runtime at load (FUNCTION_INVOCATION_FAILED),
+// and a dynamic import()/named-export access is undefined there. createRequire
+// returns the real module.exports (parse, HTMLElement) reliably in dev and on
+// Vercel. HTMLElement is used only as a type here (type-only import).
+import { createRequire } from 'module'
 import type { HTMLElement } from 'node-html-parser'
-let _htmlLib: { parse: typeof import('node-html-parser').parse } | null = null
-async function loadHtml() {
-  if (!_htmlLib) {
-    const m: any = await import('node-html-parser')
-    _htmlLib = { parse: m.parse ?? m.default?.parse ?? m.default }
-  }
-  return _htmlLib
-}
+const { parse } = createRequire(import.meta.url)('node-html-parser') as typeof import('node-html-parser')
 
 export interface FullTextSection {
   heading: string | null
@@ -238,7 +227,6 @@ async function getEuropePmcFullText(pmcid: string): Promise<FullTextResult> {
       return { available: false }
     }
 
-    const { parse } = await loadHtml()
     const root = parse(xml)
     const sections: FullTextSection[] = []
     const seen = new Set<string>()
@@ -365,7 +353,6 @@ async function getArxivFullText(arxivId: string): Promise<FullTextResult> {
       return { available: false }
     }
 
-    const { parse } = await loadHtml()
     const root = parse(html)
 
     // Pre-clean: replace math elements with their alttext
