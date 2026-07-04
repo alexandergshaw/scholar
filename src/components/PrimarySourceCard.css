@@ -1,15 +1,19 @@
 .primary-card {
   padding: 1rem;
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
   display: flex;
   gap: 1rem;
   align-items: flex-start;
-  transition: background-color 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
   flex-wrap: wrap;
 }
 
 .primary-card:active {
-  background-color: var(--color-bg-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(60, 50, 35, 0.1), 0 4px 12px rgba(60, 50, 35, 0.08);
 }
 
 .primary-card-content {
@@ -20,8 +24,9 @@
 .primary-title {
   font-size: 1rem;
   font-weight: 600;
+  font-family: var(--font-display);
   margin-bottom: 0.5rem;
-  line-height: 1.4;
+  line-height: 1.25;
   color: var(--color-text);
 }
 
@@ -55,48 +60,48 @@
 }
 
 .source-project-gutenberg {
-  background-color: #e8f5e9;
-  color: #1b5e20;
+  background-color: rgba(74, 107, 95, 0.12);
+  color: #4a6b5f;
 }
 
-body.theme-dark .source-project-gutenberg {
-  background-color: #1b3a1b;
-  color: #81c784;
+.theme-dark .source-project-gutenberg {
+  background-color: rgba(127, 176, 160, 0.15);
+  color: #7fb0a0;
 }
 
-body.theme-sepia .source-project-gutenberg {
-  background-color: #e8e0d0;
-  color: #2d5016;
+.theme-sepia .source-project-gutenberg {
+  background-color: rgba(122, 92, 62, 0.12);
+  color: #7a5c3e;
 }
 
 .source-internet-archive {
-  background-color: #e3f2fd;
-  color: #0d47a1;
+  background-color: rgba(74, 107, 95, 0.12);
+  color: #4a6b5f;
 }
 
-body.theme-dark .source-internet-archive {
-  background-color: #1a237e;
-  color: #64b5f6;
+.theme-dark .source-internet-archive {
+  background-color: rgba(127, 176, 160, 0.15);
+  color: #7fb0a0;
 }
 
-body.theme-sepia .source-internet-archive {
-  background-color: #e8e0d0;
-  color: #1d3557;
+.theme-sepia .source-internet-archive {
+  background-color: rgba(122, 92, 62, 0.12);
+  color: #7a5c3e;
 }
 
 .source-chronicling-america {
-  background-color: #f3e5f5;
-  color: #4a148c;
+  background-color: rgba(74, 107, 95, 0.12);
+  color: #4a6b5f;
 }
 
-body.theme-dark .source-chronicling-america {
-  background-color: #4a148c;
-  color: #ce93d8;
+.theme-dark .source-chronicling-america {
+  background-color: rgba(127, 176, 160, 0.15);
+  color: #7fb0a0;
 }
 
-body.theme-sepia .source-chronicling-america {
-  background-color: #e8e0d0;
-  color: #663366;
+.theme-sepia .source-chronicling-america {
+  background-color: rgba(122, 92, 62, 0.12);
+  color: #7a5c3e;
 }
 
 .primary-snippet {

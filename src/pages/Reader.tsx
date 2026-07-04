@@ -149,39 +149,47 @@ export default function Reader() {
         >
           <h1 className="article-title">{article.title}</h1>
 
-          {/* Metadata block */}
-          <div className="article-metadata">
+          {/* Byline and metadata */}
+          <div className="reader-byline">
             {article.authors.length > 0 && (
-              <p className="metadata-row">
-                <strong>Authors:</strong> {article.authors.join(', ')}
-              </p>
+              <span className="byline-authors">
+                {article.authors.slice(0, 3).join(', ')}
+                {article.authors.length > 3 ? ' et al.' : ''}
+              </span>
             )}
-            <p className="metadata-row">
-              <strong>Year:</strong> {article.year}
-            </p>
+            {article.year && (
+              <>
+                <span className="byline-separator">·</span>
+                <span className="byline-year">{article.year}</span>
+              </>
+            )}
             {article.journal && (
-              <p className="metadata-row">
-                <strong>Journal:</strong> {article.journal}
-              </p>
-            )}
-            {article.doi && (
-              <p className="metadata-row">
-                <strong>DOI:</strong>{' '}
-                <a
-                  href={article.doi.startsWith('http') ? article.doi : `https://doi.org/${article.doi}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {article.doi.replace(/^https?:\/\/doi\.org\//, '')}
-                </a>
-              </p>
-            )}
-            {article.citedBy > 0 && (
-              <p className="metadata-row">
-                <strong>Cited by:</strong> {article.citedBy}
-              </p>
+              <>
+                <span className="byline-separator">·</span>
+                <span className="byline-journal">{article.journal}</span>
+              </>
             )}
           </div>
+
+          {/* Secondary metadata */}
+          {(article.doi || article.citedBy > 0) && (
+            <div className="reader-meta-secondary">
+              {article.doi && (
+                <span className="meta-doi">
+                  <a
+                    href={article.doi.startsWith('http') ? article.doi : `https://doi.org/${article.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    DOI: {article.doi.replace(/^https?:\/\/doi\.org\//, '')}
+                  </a>
+                </span>
+              )}
+              {article.citedBy > 0 && (
+                <span className="meta-cited">Cited by {article.citedBy}</span>
+              )}
+            </div>
+          )}
 
           {/* Listen (Read Aloud) and Ask About This features */}
           <div className="reader-widgets">

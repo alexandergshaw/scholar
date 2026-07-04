@@ -21,12 +21,12 @@ function App() {
   useFavoritesStore()
   useReaderSettingsStore()
 
-  // Apply theme to body
+  // Apply theme to the document root so themed variables inherit everywhere
   useEffect(() => {
-    const body = document.body
-    body.classList.remove('theme-light', 'theme-sepia', 'theme-dark')
+    const el = document.documentElement
+    el.classList.remove('theme-light', 'theme-sepia', 'theme-dark')
     if (theme !== 'light') {
-      body.classList.add(`theme-${theme}`)
+      el.classList.add(`theme-${theme}`)
     }
   }, [theme])
 
