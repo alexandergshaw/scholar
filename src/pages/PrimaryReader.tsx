@@ -29,7 +29,7 @@ export default function PrimaryReader() {
   const [showControls, setShowControls] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [offlineError, setOfflineError] = useState<string | null>(null)
-  const tts = useReaderTts()
+  const tts = useReaderTts(src || title || 'primary')
 
   // Build segments array for TTS (sentences)
   const segments = useMemo(() => {

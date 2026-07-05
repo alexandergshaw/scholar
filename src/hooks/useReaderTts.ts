@@ -3,9 +3,9 @@ import { useTts } from './useTts'
 import { useCloudTts } from './useCloudTts'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
 
-export function useReaderTts() {
+export function useReaderTts(itemId?: string) {
   const deviceTts = useTts()
-  const cloudTts = useCloudTts()
+  const cloudTts = useCloudTts(itemId)
   const { engine } = useTtsSettingsStore()
 
   // Select the active engine, with offline fallback for cloud engine
@@ -36,5 +36,5 @@ export function useReaderTts() {
         activeTts.changeVoice(voiceId)
       }
     }
-  }), [engine, activeTts, deviceTts.supported, deviceTts.voices, deviceTts.sortedVoices])
+  }), [engine, activeTts, deviceTts.supported, deviceTts.voices, deviceTts.sortedVoices, itemId])
 }

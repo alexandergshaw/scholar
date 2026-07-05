@@ -33,7 +33,7 @@ export default function Reader() {
   const { addRecent } = useRecentsStore()
   const { saveOffline, removeOffline } = useOfflineStore()
   const isSavedOffline = useOfflineStore(state => state.isSavedOffline)
-  const tts = useReaderTts()
+  const tts = useReaderTts(article ? shortIdOf(article.id) : undefined)
 
   // Build segments array for TTS (sentences)
   const segments = useMemo(() => {

@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal, SkipBack, SkipForward, Bookmark, BookmarkCheck } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal, SkipBack, SkipForward, Bookmark, BookmarkCheck, Download, X } from 'lucide-react'
 import { CURATED_CLOUD_VOICES } from '../hooks/useCloudTts'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
 import { useTts } from '../hooks/useTts'
 import { useBookmarksStore } from '../stores/bookmarksStore'
+import { cacheAllSegments, cachedCount as getCachedCount, clearCachedAudio } from '../utils/audioCache'
 import type { useReaderTts } from '../hooks/useReaderTts'
 import './ListenBar.css'
 
@@ -47,6 +48,19 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
   const [showSettings, setShowSettings] = useState(false)
   const { bookmarks, setBookmark } = useBookmarksStore()
   const bookmarkIndex = bookmarks[articleKey]
+  const [caching, setCaching] = useState(false)
+  const [cachedProgress, setCachedProgress] = useState(0)
+  const [cachedTotal, setCachedTotal] = useState(0)
+  const [cachedCount, setCachedCountLocal] = useState(0)
+  const [cacheError, setCacheError] = useState<string | null>(null)
+  const cancelRef = useRef(false)
+
+  // Load cached count on mount and when engine/voice changes
+  useEffect(() => {
+    if (engine === 'cloud' && showSettings) {
+      getCachedCount(articleKey, cloudVoice).then((count: number) => setCachedCountLocal(count))
+    }
+  }, [engine, cloudVoice, showSettings, articleKey])
 
   // Handle device voice change
   const handleDeviceVoiceChange = (newVoiceURI: string | null) => {
@@ -58,6 +72,44 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
   const handleCloudVoiceChange = (newVoiceId: string) => {
     setCloudVoice(newVoiceId)
     tts.changeVoice(newVoiceId)
+  }
+
+  const handleCacheAllSegments = async () => {
+    setCaching(true)
+    setCacheError(null)
+    cancelRef.current = false
+    setCachedProgress(0)
+
+    const cloudVoiceInfo = CURATED_CLOUD_VOICES.find(v => v.id === cloudVoice) || CURATED_CLOUD_VOICES[0]
+    const pitchMapped = (pitch - 1) * 10
+
+    const result = await cacheAllSegments(
+      articleKey,
+      cloudVoice,
+      cloudVoiceInfo.languageCode,
+      rate,
+      pitchMapped,
+      segments,
+      (done, total) => {
+        setCachedProgress(done)
+        setCachedTotal(total)
+      },
+      () => cancelRef.current
+    )
+
+    setCaching(false)
+    if (result.ok) {
+      setCachedCountLocal(result.cached)
+      setCachedProgress(0)
+      setCachedTotal(0)
+    } else {
+      setCacheError(result.error || 'Unknown error')
+    }
+  }
+
+  const handleClearCache = async () => {
+    await clearCachedAudio(articleKey)
+    setCachedCountLocal(0)
   }
 
   if (!tts.supported) {
@@ -290,6 +342,68 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
               onChange={(e) => setPitch(parseFloat(e.target.value))}
             />
           </div>
+
+          {engine === 'cloud' && (
+            <div className="settings-section cache-section">
+              <label className="settings-label">Download voice audio for offline</label>
+              <p className="cache-note">Uses the cloud voice API to generate audio (one request per sentence); lets you listen offline with the natural voice.</p>
+              {cacheError && (
+                <div className="ask-error" style={{ marginBottom: '12px', fontSize: '0.9em' }}>
+                  {cacheError}
+                </div>
+              )}
+              {caching ? (
+                <div className="cache-progress">
+                  <div className="cache-progress-text">
+                    Caching audio… {cachedProgress}/{cachedTotal}
+                  </div>
+                  <div className="cache-progress-bar">
+                    <div
+                      className="cache-progress-fill"
+                      style={{ width: `${cachedTotal > 0 ? (cachedProgress / cachedTotal) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <button
+                    className="cache-button cancel"
+                    onClick={() => {
+                      cancelRef.current = true
+                    }}
+                  >
+                    <X size={16} />
+                    Cancel
+                  </button>
+                </div>
+              ) : cachedCount > 0 && cachedCount === segments.length ? (
+                <div className="cache-status">
+                  <p className="cache-status-text">Downloaded for offline (cloud voice): {cachedCount}/{segments.length}</p>
+                  <button className="cache-button clear" onClick={handleClearCache}>
+                    Clear
+                  </button>
+                </div>
+              ) : (
+                <div className="cache-action">
+                  {cachedCount > 0 && (
+                    <p className="cache-status-text">Cached: {cachedCount}/{segments.length}</p>
+                  )}
+                  <div className="cache-buttons">
+                    <button
+                      className="cache-button download"
+                      onClick={handleCacheAllSegments}
+                      disabled={segments.length === 0 || caching}
+                    >
+                      <Download size={16} />
+                      Download all
+                    </button>
+                    {cachedCount > 0 && (
+                      <button className="cache-button clear" onClick={handleClearCache} disabled={caching}>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
+import { getCachedAudio } from '../utils/audioCache'
 
 export interface CloudVoice {
   id: string
@@ -34,7 +35,7 @@ interface UseCloudTtsReturn {
   changeVoice: (newVoiceId: string) => void
 }
 
-export function useCloudTts(): UseCloudTtsReturn {
+export function useCloudTts(itemId?: string): UseCloudTtsReturn {
   const [speaking, setSpeaking] = useState(false)
   const [paused, setPaused] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -138,50 +139,61 @@ export function useCloudTts(): UseCloudTtsReturn {
         const effectiveVoice = voiceOverride || cloudVoice
         const voiceInfo = CURATED_CLOUD_VOICES.find((v) => v.id === effectiveVoice) || CURATED_CLOUD_VOICES[0]
 
-        const response = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: chunk,
-            voice: effectiveVoice,
-            languageCode: voiceInfo.languageCode,
-            rate,
-            pitch: mapPitch(pitch)
+        // Check cache first if itemId is available
+        let audioBase64: string | null = null
+        if (itemId) {
+          audioBase64 = await getCachedAudio(itemId, effectiveVoice, segmentIndex)
+        }
+
+        if (!audioBase64) {
+          // Fetch from API
+          const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: chunk,
+              voice: effectiveVoice,
+              languageCode: voiceInfo.languageCode,
+              rate,
+              pitch: mapPitch(pitch)
+            })
           })
-        })
 
-        if (!response.ok) {
-          let bodyText = ''
-          try {
-            bodyText = await response.text()
-          } catch {}
-          setError(`Server error ${response.status}${bodyText ? ': ' + bodyText.slice(0, 300) : ''}`)
-          setSpeaking(false)
-          setPaused(false)
-          setLoading(false)
-          return
+          if (!response.ok) {
+            let bodyText = ''
+            try {
+              bodyText = await response.text()
+            } catch {}
+            setError(`Server error ${response.status}${bodyText ? ': ' + bodyText.slice(0, 300) : ''}`)
+            setSpeaking(false)
+            setPaused(false)
+            setLoading(false)
+            return
+          }
+
+          const result = await response.json()
+
+          if (!result.configured) {
+            setError(result.error || 'Cloud voices not configured.')
+            setSpeaking(false)
+            setPaused(false)
+            setLoading(false)
+            return
+          }
+
+          if (result.error) {
+            setError(result.error)
+            setSpeaking(false)
+            setPaused(false)
+            setLoading(false)
+            return
+          }
+
+          audioBase64 = result.audio
         }
 
-        const result = await response.json()
-
-        if (!result.configured) {
-          setError(result.error || 'Cloud voices not configured.')
-          setSpeaking(false)
-          setPaused(false)
-          setLoading(false)
-          return
-        }
-
-        if (result.error) {
-          setError(result.error)
-          setSpeaking(false)
-          setPaused(false)
-          setLoading(false)
-          return
-        }
-
-        if (result.audio && audioRef.current) {
-          audioRef.current.src = 'data:audio/mp3;base64,' + result.audio
+        if (audioBase64 && audioRef.current) {
+          audioRef.current.src = 'data:audio/mp3;base64,' + audioBase64
 
           // Only seek when a voice change asked us to preserve position within
           // the current chunk. Normal chunk advancement plays from the start.
@@ -210,7 +222,7 @@ export function useCloudTts(): UseCloudTtsReturn {
         setLoading(false)
       }
     },
-    [cloudVoice, rate, pitch]
+    [cloudVoice, rate, pitch, itemId]
   )
 
   const speak = useCallback(
