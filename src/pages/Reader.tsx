@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Star, Settings2, X, ExternalLink, Download, Check } from 'lucide-react'
+import { ArrowLeft, Star, Settings2, X, ExternalLink, Download, Check, FileDown } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useRecentsStore } from '../stores/recentsStore'
@@ -14,6 +14,7 @@ import { getWorkById, shortIdOf } from '../utils/openalexApi'
 import { fetchFullText } from '../utils/fulltextApi'
 import { fetchOaExtract } from '../utils/oaExtractApi'
 import { splitSentences } from '../utils/segmentText'
+import { sectionsToPlainText, downloadTextFile, safeFilename } from '../utils/downloadText'
 import './Reader.css'
 
 export default function Reader() {
@@ -273,6 +274,19 @@ export default function Reader() {
                 </button>
               )
             })()}
+            {fullText && fullText.available && (
+              <button
+                className="offline-btn"
+                onClick={() => {
+                  if (fullText && fullText.available) {
+                    downloadTextFile(safeFilename(article.title), sectionsToPlainText(article.title, fullText.sections))
+                  }
+                }}
+                title="Download as text file (.txt)"
+              >
+                <FileDown size={18} />
+              </button>
+            )}
             <ListenBar segments={segments} tts={tts} articleKey={shortIdOf(article.id)} />
             <AskBox
               getContext={() => {

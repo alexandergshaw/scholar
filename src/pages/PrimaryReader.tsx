@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Settings2, X, Download, Check } from 'lucide-react'
+import { ArrowLeft, Settings2, X, Download, Check, FileDown } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import { useOfflineStore } from '../stores/offlineStore'
 import ReaderControls from '../components/ReaderControls'
@@ -10,6 +10,7 @@ import { useReaderTts } from '../hooks/useReaderTts'
 import { FullTextResult } from '../types'
 import { fetchPrimaryText } from '../utils/primaryTextApi'
 import { splitSentences } from '../utils/segmentText'
+import { sectionsToPlainText, downloadTextFile, safeFilename } from '../utils/downloadText'
 import './Reader.css'
 
 export default function PrimaryReader() {
@@ -153,6 +154,19 @@ export default function PrimaryReader() {
                 </button>
               ) : null
             })()}
+            {primaryText && primaryText.available && (
+              <button
+                className="offline-btn"
+                onClick={() => {
+                  if (primaryText && primaryText.available) {
+                    downloadTextFile(safeFilename(title || 'document'), sectionsToPlainText(title || '', primaryText.sections))
+                  }
+                }}
+                title="Download as text file (.txt)"
+              >
+                <FileDown size={18} />
+              </button>
+            )}
             <ListenBar segments={segments} tts={tts} articleKey={src || title || 'primary'} />
             <AskBox
               getContext={() => {
