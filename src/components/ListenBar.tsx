@@ -111,10 +111,10 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
             <button
               className="listen-button"
               onClick={handleResume}
-              title={`Resume at paragraph ${bookmarkIndex + 1}`}
+              title="Resume from bookmark"
             >
               <Bookmark size={18} />
-              Resume ¶{bookmarkIndex + 1}
+              Resume
             </button>
             <button
               className="listen-button"
@@ -140,7 +140,7 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
               className="listen-button"
               onClick={tts.prev}
               disabled={tts.currentIndex <= 0}
-              title="Previous paragraph"
+              title="Previous sentence"
             >
               <SkipBack size={18} />
             </button>
@@ -156,7 +156,7 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
               className="listen-button"
               onClick={tts.next}
               disabled={tts.currentIndex >= segments.length - 1}
-              title="Next paragraph"
+              title="Next sentence"
             >
               <SkipForward size={18} />
             </button>
@@ -172,7 +172,7 @@ export default function ListenBar({ segments, tts, articleKey }: ListenBarProps)
               className="listen-button bookmark"
               onClick={handleBookmark}
               disabled={tts.currentIndex < 0}
-              title={bookmarkIndex !== undefined ? `Update bookmark (paragraph ${bookmarkIndex + 1})` : 'Bookmark this spot'}
+              title={bookmarkIndex !== undefined ? 'Update bookmark' : 'Bookmark this spot'}
             >
               {bookmarkIndex !== undefined ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
             </button>

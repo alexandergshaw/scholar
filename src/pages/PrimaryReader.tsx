@@ -8,6 +8,7 @@ import ListenBar from '../components/ListenBar'
 import { useReaderTts } from '../hooks/useReaderTts'
 import { FullTextResult } from '../types'
 import { fetchPrimaryText } from '../utils/primaryTextApi'
+import { splitSentences } from '../utils/segmentText'
 import './Reader.css'
 
 export default function PrimaryReader() {
@@ -26,13 +27,13 @@ export default function PrimaryReader() {
   const [error, setError] = useState<string | null>(null)
   const tts = useReaderTts()
 
-  // Build segments array for TTS
+  // Build segments array for TTS (sentences)
   const segments = useMemo(() => {
     const segs: string[] = []
     if (primaryText && primaryText.available) {
       primaryText.sections.forEach(section => {
         section.paragraphs.forEach(para => {
-          segs.push(para)
+          splitSentences(para).forEach(sent => segs.push(sent))
         })
       })
     }
@@ -147,20 +148,23 @@ export default function PrimaryReader() {
                       {section.heading && (
                         <h2 className="section-heading">{section.heading}</h2>
                       )}
-                      {section.paragraphs.map((paragraph, pidx) => {
-                        const segIdx = globalSegIdx
-                        globalSegIdx += 1
-                        return (
-                          <p
-                            key={pidx}
-                            className={`section-paragraph${tts.currentIndex === segIdx ? ' tts-active' : ''}`}
-                            onClick={() => tts.speak(segments, segIdx)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            {paragraph}
-                          </p>
-                        )
-                      })}
+                      {section.paragraphs.map((paragraph, pidx) => (
+                        <p key={pidx} className="section-paragraph">
+                          {splitSentences(paragraph).map((sentence, sidx) => {
+                            const segIdx = globalSegIdx
+                            globalSegIdx += 1
+                            return (
+                              <span
+                                key={sidx}
+                                className={`tts-sentence${tts.currentIndex === segIdx ? ' tts-active' : ''}`}
+                                onClick={() => tts.speak(segments, segIdx)}
+                              >
+                                {sentence}{' '}
+                              </span>
+                            )
+                          })}
+                        </p>
+                      ))}
                     </div>
                   ))
                 })()}

@@ -13,6 +13,7 @@ import { Article, FullTextResult } from '../types'
 import { getWorkById, shortIdOf } from '../utils/openalexApi'
 import { fetchFullText } from '../utils/fulltextApi'
 import { fetchOaExtract } from '../utils/oaExtractApi'
+import { splitSentences } from '../utils/segmentText'
 import './Reader.css'
 
 export default function Reader() {
@@ -33,13 +34,13 @@ export default function Reader() {
   const isSavedOffline = useOfflineStore(state => state.isSavedOffline)
   const tts = useReaderTts()
 
-  // Build segments array for TTS
+  // Build segments array for TTS (sentences)
   const segments = useMemo(() => {
     const segs: string[] = []
     if (fullText && fullText.available) {
       fullText.sections.forEach(section => {
         section.paragraphs.forEach(para => {
-          segs.push(para)
+          splitSentences(para).forEach(sent => segs.push(sent))
         })
       })
     }
@@ -316,20 +317,23 @@ export default function Reader() {
                       {section.heading && (
                         <h2 className="section-heading">{section.heading}</h2>
                       )}
-                      {section.paragraphs.map((paragraph, pidx) => {
-                        const segIdx = globalSegIdx
-                        globalSegIdx += 1
-                        return (
-                          <p
-                            key={pidx}
-                            className={`section-paragraph${tts.currentIndex === segIdx ? ' tts-active' : ''}`}
-                            onClick={() => tts.speak(segments, segIdx)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            {paragraph}
-                          </p>
-                        )
-                      })}
+                      {section.paragraphs.map((paragraph, pidx) => (
+                        <p key={pidx} className="section-paragraph">
+                          {splitSentences(paragraph).map((sentence, sidx) => {
+                            const segIdx = globalSegIdx
+                            globalSegIdx += 1
+                            return (
+                              <span
+                                key={sidx}
+                                className={`tts-sentence${tts.currentIndex === segIdx ? ' tts-active' : ''}`}
+                                onClick={() => tts.speak(segments, segIdx)}
+                              >
+                                {sentence}{' '}
+                              </span>
+                            )
+                          })}
+                        </p>
+                      ))}
                     </div>
                   ))
                 })()}
