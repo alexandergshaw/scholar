@@ -8,8 +8,9 @@ export function useReaderTts() {
   const cloudTts = useCloudTts()
   const { engine } = useTtsSettingsStore()
 
-  // Select the active engine
-  const isDeviceEngine = engine === 'device'
+  // Select the active engine, with offline fallback for cloud engine
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+  const isDeviceEngine = engine === 'device' || (engine === 'cloud' && offline)
   const activeTts = isDeviceEngine ? deviceTts : cloudTts
 
   // Return unified interface delegating to the active engine

@@ -11,18 +11,32 @@ export interface SavedOffline {
   savedAt: number
 }
 
+export interface SavedOfflinePrimary {
+  id: string
+  title: string
+  source: string
+  fullText: AvailableFullText
+  savedAt: number
+}
+
 interface OfflineStore {
   saved: SavedOffline[]
+  savedPrimary: SavedOfflinePrimary[]
   saveOffline: (article: Article, fullText: AvailableFullText) => boolean
   removeOffline: (id: string) => void
   isSavedOffline: (id: string) => boolean
   getOffline: (id: string) => SavedOffline | undefined
+  savePrimaryOffline: (id: string, title: string, source: string, fullText: AvailableFullText) => boolean
+  removePrimaryOffline: (id: string) => void
+  isPrimaryOffline: (id: string) => boolean
+  getPrimaryOffline: (id: string) => SavedOfflinePrimary | undefined
 }
 
 export const useOfflineStore = create<OfflineStore>()(
   persist(
     (set, get) => ({
       saved: [],
+      savedPrimary: [],
       saveOffline: (article: Article, fullText: AvailableFullText) => {
         try {
           const { saved } = get()
@@ -59,6 +73,33 @@ export const useOfflineStore = create<OfflineStore>()(
         return saved.find(
           s => shortIdOf(s.article.id) === shortId || s.article.id === id
         )
+      },
+      savePrimaryOffline: (id: string, title: string, source: string, fullText: AvailableFullText) => {
+        try {
+          const { savedPrimary } = get()
+          // Upsert: remove if exists, then add new
+          const filtered = savedPrimary.filter(s => s.id !== id)
+          const updated = [...filtered, { id, title, source, fullText, savedAt: Date.now() }]
+          set({ savedPrimary: updated })
+          return true
+        } catch (err) {
+          // QuotaExceededError or other storage errors
+          console.error('Failed to save primary offline:', err)
+          return false
+        }
+      },
+      removePrimaryOffline: (id: string) => {
+        const { savedPrimary } = get()
+        const filtered = savedPrimary.filter(s => s.id !== id)
+        set({ savedPrimary: filtered })
+      },
+      isPrimaryOffline: (id: string) => {
+        const { savedPrimary } = get()
+        return savedPrimary.some(s => s.id === id)
+      },
+      getPrimaryOffline: (id: string) => {
+        const { savedPrimary } = get()
+        return savedPrimary.find(s => s.id === id)
       }
     }),
     {

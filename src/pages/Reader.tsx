@@ -247,8 +247,8 @@ export default function Reader() {
               const isDisabled = !canSave && !isSaved
 
               let title = 'No full text available to save offline'
-              if (isSaved) title = 'Saved for offline reading'
-              else if (canSave) title = 'Save for offline reading'
+              if (isSaved) title = 'Downloaded for offline reading & listening'
+              else if (canSave) title = 'Download for offline reading & listening'
 
               return (
                 <button

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Settings2, X } from 'lucide-react'
+import { ArrowLeft, Settings2, X, Download, Check } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
+import { useOfflineStore } from '../stores/offlineStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
 import ListenBar from '../components/ListenBar'
@@ -20,11 +21,13 @@ export default function PrimaryReader() {
   const source = searchParams.get('source')
 
   const { fontSize, fontFamily, lineSpacing } = useReaderSettingsStore()
+  const { savePrimaryOffline, removePrimaryOffline, isPrimaryOffline } = useOfflineStore()
 
   const [primaryText, setPrimaryText] = useState<FullTextResult | null>(null)
   const [primaryTextLoading, setPrimaryTextLoading] = useState(false)
   const [showControls, setShowControls] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [offlineError, setOfflineError] = useState<string | null>(null)
   const tts = useReaderTts()
 
   // Build segments array for TTS (sentences)
@@ -50,6 +53,14 @@ export default function PrimaryReader() {
     setError(null)
     setPrimaryText(null)
     setPrimaryTextLoading(true)
+
+    // Check offline store first
+    const savedOffline = useOfflineStore.getState().getPrimaryOffline(src)
+    if (savedOffline) {
+      setPrimaryText(savedOffline.fullText)
+      setPrimaryTextLoading(false)
+      return
+    }
 
     const loadPrimaryText = async () => {
       const result = await fetchPrimaryText(src)
@@ -110,6 +121,38 @@ export default function PrimaryReader() {
 
           {/* Action toolbar: listen, ask, and settings */}
           <div className="reader-widgets">
+            {(() => {
+              const canSave = !!primaryText && primaryText.available
+              const isSaved = src ? isPrimaryOffline(src) : false
+              const isDisabled = !canSave && !isSaved
+
+              let btnTitle = 'No full text available to save offline'
+              if (isSaved) btnTitle = 'Downloaded for offline reading & listening'
+              else if (canSave) btnTitle = 'Download for offline reading & listening'
+
+              return src ? (
+                <button
+                  className={`offline-btn ${isSaved ? 'active' : ''}`}
+                  onClick={() => {
+                    if (isSaved) {
+                      removePrimaryOffline(src)
+                      setOfflineError(null)
+                    } else if (canSave && primaryText && primaryText.available) {
+                      const success = savePrimaryOffline(src, title || '', source || '', primaryText)
+                      if (!success) {
+                        setOfflineError('Couldn\'t save offline — storage may be full.')
+                      } else {
+                        setOfflineError(null)
+                      }
+                    }
+                  }}
+                  disabled={isDisabled}
+                  title={btnTitle}
+                >
+                  {isSaved ? <Check size={18} /> : <Download size={18} />}
+                </button>
+              ) : null
+            })()}
             <ListenBar segments={segments} tts={tts} articleKey={src || title || 'primary'} />
             <AskBox
               getContext={() => {
@@ -126,6 +169,13 @@ export default function PrimaryReader() {
               <Settings2 size={18} />
             </button>
           </div>
+
+          {/* Offline save error message */}
+          {offlineError && (
+            <div className="error-message" style={{ marginTop: '1rem' }}>
+              {offlineError}
+            </div>
+          )}
 
           {/* Loading state */}
           {primaryTextLoading && (
