@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal } from 'lucide-react'
-import { useTts } from '../hooks/useTts'
-import { useCloudTts, CURATED_CLOUD_VOICES } from '../hooks/useCloudTts'
+import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal, SkipBack, SkipForward } from 'lucide-react'
+import { CURATED_CLOUD_VOICES } from '../hooks/useCloudTts'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
+import { useTts } from '../hooks/useTts'
+import type { useReaderTts } from '../hooks/useReaderTts'
 import './ListenBar.css'
 
 interface ListenBarProps {
-  getText: () => string
+  segments: string[]
+  tts: ReturnType<typeof useReaderTts>
 }
 
 // Helper to rank voice naturalness (mirrors the one in useTts.ts)
@@ -37,83 +39,58 @@ function naturalnessRank(voice: SpeechSynthesisVoice): number {
   return baseRank
 }
 
-export default function ListenBar({ getText }: ListenBarProps) {
-  const { supported, sortedVoices, speaking, paused, speak, pause, resume, stop, changeVoice } = useTts()
-  const { speaking: cloudSpeaking, paused: cloudPaused, loading: cloudLoading, error: cloudError, speak: cloudSpeak, pause: cloudPause, resume: cloudResume, stop: cloudStop, changeVoice: changeCloudVoice } = useCloudTts()
+export default function ListenBar({ segments, tts }: ListenBarProps) {
   const { voiceURI, rate, pitch, engine, cloudVoice, setVoiceURI, setRate, setPitch, setEngine, setCloudVoice } = useTtsSettingsStore()
+  const deviceSortedVoices = useTts().sortedVoices
   const [showSettings, setShowSettings] = useState(false)
 
   // Handle device voice change
   const handleDeviceVoiceChange = (newVoiceURI: string | null) => {
     setVoiceURI(newVoiceURI)
-    changeVoice(newVoiceURI)
+    tts.changeVoice(newVoiceURI)
   }
 
   // Handle cloud voice change
   const handleCloudVoiceChange = (newVoiceId: string) => {
     setCloudVoice(newVoiceId)
-    changeCloudVoice(newVoiceId)
+    tts.changeVoice(newVoiceId)
   }
 
-  if (!supported) {
+  if (!tts.supported) {
     return null
   }
 
-  // Use active engine's state and controls
-  const isActive = engine === 'device'
-  const activeSpeaking = isActive ? speaking : cloudSpeaking
-  const activePaused = isActive ? paused : cloudPaused
-  const activeLoading = isActive ? false : cloudLoading
-  const activeError = isActive ? null : cloudError
-
   const handleListen = () => {
-    const text = getText()
-    if (text) {
-      if (engine === 'device') {
-        speak(text)
-      } else {
-        cloudSpeak(text)
-      }
+    if (segments.length > 0) {
+      tts.speak(segments, 0)
     }
   }
 
   const togglePlayPause = () => {
-    if (engine === 'device') {
-      if (paused) {
-        resume()
-      } else {
-        pause()
-      }
+    if (tts.paused) {
+      tts.resume()
     } else {
-      if (cloudPaused) {
-        cloudResume()
-      } else {
-        cloudPause()
-      }
+      tts.pause()
     }
   }
 
   const handleStop = () => {
-    if (engine === 'device') {
-      stop()
-    } else {
-      cloudStop()
-    }
+    tts.stop()
   }
 
   // Partition voices into natural and other
-  const naturalVoices = sortedVoices.filter(v => naturalnessRank(v) >= 70)
-  const otherVoices = sortedVoices.filter(v => naturalnessRank(v) < 70)
+  const naturalVoices = deviceSortedVoices.filter(v => naturalnessRank(v) >= 70)
+  const otherVoices = deviceSortedVoices.filter(v => naturalnessRank(v) < 70)
 
   return (
     <div className="listen-bar">
       <div className="listen-controls">
-        {activeLoading ? (
+        {tts.loading ? (
           <button className="listen-button" disabled title="Preparing audio...">
             <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
             Preparing...
           </button>
-        ) : !activeSpeaking ? (
+        ) : !tts.speaking ? (
           <button
             className="listen-button"
             onClick={handleListen}
@@ -125,12 +102,28 @@ export default function ListenBar({ getText }: ListenBarProps) {
         ) : (
           <>
             <button
+              className="listen-button"
+              onClick={tts.prev}
+              disabled={tts.currentIndex <= 0}
+              title="Previous paragraph"
+            >
+              <SkipBack size={18} />
+            </button>
+            <button
               className="listen-button playing"
               onClick={togglePlayPause}
-              title={activePaused ? 'Resume' : 'Pause'}
+              title={tts.paused ? 'Resume' : 'Pause'}
             >
-              {activePaused ? <Play size={18} /> : <Pause size={18} />}
-              {activePaused ? 'Resume' : 'Pause'}
+              {tts.paused ? <Play size={18} /> : <Pause size={18} />}
+              {tts.paused ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              className="listen-button"
+              onClick={tts.next}
+              disabled={tts.currentIndex >= segments.length - 1}
+              title="Next paragraph"
+            >
+              <SkipForward size={18} />
             </button>
             <button
               className="listen-button stop"
@@ -154,9 +147,9 @@ export default function ListenBar({ getText }: ListenBarProps) {
 
       {showSettings && (
         <div className="voice-settings-panel">
-          {activeError && (
+          {tts.error && (
             <div className="ask-error" style={{ marginBottom: '12px', fontSize: '0.9em' }}>
-              {activeError}
+              {tts.error}
             </div>
           )}
 
@@ -181,7 +174,7 @@ export default function ListenBar({ getText }: ListenBarProps) {
           <div className="settings-section">
             <label className="settings-label">{engine === 'device' ? 'Voice' : 'Natural Voice'}</label>
             {engine === 'device' ? (
-              sortedVoices.length > 0 ? (
+              deviceSortedVoices.length > 0 ? (
                 <select
                   className="voice-select"
                   value={voiceURI || ''}

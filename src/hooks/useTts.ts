@@ -7,10 +7,14 @@ interface UseTtsReturn {
   sortedVoices: SpeechSynthesisVoice[]
   speaking: boolean
   paused: boolean
-  speak: (text: string) => void
+  currentIndex: number
+  speak: (segments: string[], startIndex?: number) => void
   pause: () => void
   resume: () => void
   stop: () => void
+  seekTo: (index: number) => void
+  next: () => void
+  prev: () => void
   changeVoice: (newVoiceURI: string | null) => void
 }
 
@@ -48,13 +52,13 @@ export function useTts(): UseTtsReturn {
   const [sortedVoices, setSortedVoices] = useState<SpeechSynthesisVoice[]>([])
   const [speaking, setSpeaking] = useState(false)
   const [paused, setPaused] = useState(false)
+  const [currentIndex, setCurrentIndex] = useState(-1)
   const [syncIntervalId, setSyncIntervalId] = useState<number | null>(null)
   const hasStartedRef = useRef(false)
 
-  // Track current text and position for voice switching
-  const currentTextRef = useRef<string>('')
-  const currentCharIndexRef = useRef<number>(0)
-  const chunkStartOffsetsRef = useRef<number[]>([])
+  // Track current segment and segments array
+  const segmentsRef = useRef<string[]>([])
+  const currentIndexRef = useRef(-1)
 
   const { voiceURI, rate, pitch, setVoiceURI } = useTtsSettingsStore()
 
@@ -136,13 +140,13 @@ export function useTts(): UseTtsReturn {
     }
   }, [stopSyncInterval])
 
-  // Build, queue, and speak chunks
+  // Build, queue, and speak a single segment (may be sub-chunked into ~250-char utterances)
   const buildAndQueueUtterances = useCallback(
-    (text: string, voiceOverride?: string | null) => {
+    (segment: string, voiceOverride?: string | null) => {
       if (!supported || !window.speechSynthesis) return
 
-      // Chunk text into sentences
-      const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text]
+      // Chunk segment into sentences
+      const sentences = segment.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [segment]
 
       // Group consecutive sentences into chunks of up to ~250 chars
       const chunks: string[] = []
@@ -163,15 +167,6 @@ export function useTts(): UseTtsReturn {
       if (currentChunk) chunks.push(currentChunk)
 
       if (chunks.length === 0) return
-
-      // Calculate and store chunk start offsets
-      const offsets: number[] = []
-      let offset = 0
-      chunks.forEach((chunk) => {
-        offsets.push(offset)
-        offset += chunk.length + 1 // +1 for space between chunks
-      })
-      chunkStartOffsetsRef.current = offsets
 
       // Use provided voice override or current voiceURI
       const effectiveVoiceURI = voiceOverride !== undefined ? voiceOverride : voiceURI
@@ -196,21 +191,23 @@ export function useTts(): UseTtsReturn {
           }
         }
 
-        // Set onboundary to track character position
-        utterance.onboundary = (e) => {
-          // Calculate absolute character index
-          const chunkStartOffset = chunkStartOffsetsRef.current[idx] || 0
-          const absoluteIndex = chunkStartOffset + (e.charIndex || 0)
-          currentCharIndexRef.current = absoluteIndex
-        }
-
         // Set onend on the LAST utterance
         if (idx === chunks.length - 1) {
           utterance.onend = () => {
-            setSpeaking(false)
-            setPaused(false)
-            hasStartedRef.current = false
-            stopSyncInterval()
+            // Advance to next segment
+            if (currentIndexRef.current < segmentsRef.current.length - 1) {
+              // Will trigger playback of next segment
+              const nextIdx = currentIndexRef.current + 1
+              currentIndexRef.current = nextIdx
+              setCurrentIndex(nextIdx)
+              buildAndQueueUtterances(segmentsRef.current[nextIdx])
+            } else {
+              // All segments done
+              setSpeaking(false)
+              setPaused(false)
+              hasStartedRef.current = false
+              stopSyncInterval()
+            }
           }
         }
 
@@ -232,27 +229,32 @@ export function useTts(): UseTtsReturn {
   )
 
   const speak = useCallback(
-    (text: string) => {
+    (segments: string[], startIndex: number = 0) => {
       if (!supported || !window.speechSynthesis) return
+      if (segments.length === 0) return
 
-      // Store full text and reset position
-      currentTextRef.current = text
-      currentCharIndexRef.current = 0
+      // Clamp startIndex to valid range
+      const idx = Math.max(0, Math.min(startIndex, segments.length - 1))
+
+      // Store segments and reset position
+      segmentsRef.current = segments
+      currentIndexRef.current = idx
 
       // Set optimistic state immediately for responsive UI
       setSpeaking(true)
       setPaused(false)
       hasStartedRef.current = false
+      setCurrentIndex(idx)
 
       // Avoid cancel-race: if already speaking or pending, queue the utterances after a delay
       if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
         window.speechSynthesis.cancel()
         setTimeout(() => {
-          buildAndQueueUtterances(text)
+          buildAndQueueUtterances(segments[idx])
           startSyncInterval()
         }, 120)
       } else {
-        buildAndQueueUtterances(text)
+        buildAndQueueUtterances(segments[idx])
         startSyncInterval()
       }
     },
@@ -280,50 +282,80 @@ export function useTts(): UseTtsReturn {
     setSpeaking(false)
     setPaused(false)
     hasStartedRef.current = false
+    currentIndexRef.current = -1
+    setCurrentIndex(-1)
     stopSyncInterval()
   }, [stopSyncInterval])
+
+  const seekTo = useCallback(
+    (index: number) => {
+      if (!supported || !window.speechSynthesis) return
+      if (segmentsRef.current.length === 0) return
+
+      // Clamp to valid range
+      const newIdx = Math.max(0, Math.min(index, segmentsRef.current.length - 1))
+
+      // Cancel current playback
+      window.speechSynthesis.cancel()
+      hasStartedRef.current = false
+
+      currentIndexRef.current = newIdx
+      setCurrentIndex(newIdx)
+
+      const wasPaused = paused
+
+      // Queue the new segment
+      setTimeout(() => {
+        buildAndQueueUtterances(segmentsRef.current[newIdx])
+        startSyncInterval()
+
+        // If was paused, pause immediately after starting
+        if (wasPaused && window.speechSynthesis) {
+          setTimeout(() => {
+            if (window.speechSynthesis.speaking) {
+              window.speechSynthesis.pause()
+              setPaused(true)
+            }
+          }, 50)
+        }
+      }, 120)
+    },
+    [supported, paused, buildAndQueueUtterances, startSyncInterval]
+  )
+
+  const next = useCallback(() => {
+    if (currentIndexRef.current < segmentsRef.current.length - 1) {
+      seekTo(currentIndexRef.current + 1)
+    }
+  }, [seekTo])
+
+  const prev = useCallback(() => {
+    if (currentIndexRef.current > 0) {
+      seekTo(currentIndexRef.current - 1)
+    }
+  }, [seekTo])
 
   const changeVoice = useCallback(
     (newVoiceURI: string | null) => {
       if (!supported || !window.speechSynthesis) return
 
-      // If not currently speaking, do nothing
-      if (!speaking) return
+      // If not currently speaking or no current segment, do nothing
+      if (!speaking || currentIndexRef.current < 0 || currentIndexRef.current >= segmentsRef.current.length) return
 
-      // Capture current state
       const wasPaused = paused
-      const currentPosition = currentCharIndexRef.current
-      const fullText = currentTextRef.current
+      const currentSegment = segmentsRef.current[currentIndexRef.current]
 
       // Cancel current speech
       window.speechSynthesis.cancel()
       hasStartedRef.current = false
 
-      // Determine remaining text to speak
-      const remainingText = fullText.slice(currentPosition)
-      if (!remainingText.trim()) {
-        // Reached end, stop gracefully
-        setSpeaking(false)
-        setPaused(false)
-        return
-      }
-
-      // Reset position and rebuild utterances with new voice.
-      // Store remainingText as the new tracked text so onboundary's char index
-      // and currentTextRef stay in the same coordinate space across consecutive
-      // voice switches (otherwise a 2nd switch slices original text by a
-      // remaining-text-relative index and jumps to the wrong spot).
-      currentTextRef.current = remainingText
-      currentCharIndexRef.current = 0
-
-      // Use a small delay to avoid cancel-race condition
+      // Re-speak the current segment from the start with new voice
       setTimeout(() => {
-        buildAndQueueUtterances(remainingText, newVoiceURI)
+        buildAndQueueUtterances(currentSegment, newVoiceURI)
         startSyncInterval()
 
         // If was paused, pause immediately after starting
         if (wasPaused && window.speechSynthesis) {
-          // Wait a tiny bit for speech to start, then pause
           setTimeout(() => {
             if (window.speechSynthesis.speaking) {
               window.speechSynthesis.pause()
@@ -342,10 +374,14 @@ export function useTts(): UseTtsReturn {
     sortedVoices,
     speaking,
     paused,
+    currentIndex,
     speak,
     pause,
     resume,
     stop,
+    seekTo,
+    next,
+    prev,
     changeVoice
   }
 }

@@ -171,6 +171,19 @@
   margin-bottom: 1em;
 }
 
+.section-paragraph {
+  transition: background-color 0.15s ease;
+}
+
+.section-paragraph:hover {
+  background-color: rgba(74, 159, 181, 0.1);
+}
+
+.section-paragraph.tts-active {
+  background-color: rgba(255, 214, 0, 0.18);
+  border-radius: 4px;
+}
+
 .reader-widgets {
   display: flex;
   flex-wrap: wrap;

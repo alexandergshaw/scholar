@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Settings2, X } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
 import ListenBar from '../components/ListenBar'
+import { useReaderTts } from '../hooks/useReaderTts'
 import { FullTextResult } from '../types'
 import { fetchPrimaryText } from '../utils/primaryTextApi'
 import './Reader.css'
@@ -23,6 +24,20 @@ export default function PrimaryReader() {
   const [primaryTextLoading, setPrimaryTextLoading] = useState(false)
   const [showControls, setShowControls] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const tts = useReaderTts()
+
+  // Build segments array for TTS
+  const segments = useMemo(() => {
+    const segs: string[] = []
+    if (primaryText && primaryText.available) {
+      primaryText.sections.forEach(section => {
+        section.paragraphs.forEach(para => {
+          segs.push(para)
+        })
+      })
+    }
+    return segs
+  }, [primaryText])
 
   // Load primary text on mount
   useEffect(() => {
@@ -94,17 +109,7 @@ export default function PrimaryReader() {
 
           {/* Action toolbar: listen, ask, and settings */}
           <div className="reader-widgets">
-            <ListenBar
-              getText={() => {
-                const ft =
-                  primaryText && primaryText.available
-                    ? primaryText.sections
-                        .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('. '))
-                        .join('. ')
-                    : ''
-                return [title, ft].filter(Boolean).join('. ')
-              }}
-            />
+            <ListenBar segments={segments} tts={tts} />
             <AskBox
               getContext={() => {
                 const ft =
@@ -135,18 +140,30 @@ export default function PrimaryReader() {
                 <p>Full text via {primaryText.source}</p>
               </div>
               <div className="fulltext-sections">
-                {primaryText.sections.map((section, idx) => (
-                  <div key={idx} className="fulltext-section">
-                    {section.heading && (
-                      <h2 className="section-heading">{section.heading}</h2>
-                    )}
-                    {section.paragraphs.map((paragraph, pidx) => (
-                      <p key={pidx} className="section-paragraph">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                ))}
+                {(() => {
+                  let globalSegIdx = 0
+                  return primaryText.sections.map((section, idx) => (
+                    <div key={idx} className="fulltext-section">
+                      {section.heading && (
+                        <h2 className="section-heading">{section.heading}</h2>
+                      )}
+                      {section.paragraphs.map((paragraph, pidx) => {
+                        const segIdx = globalSegIdx
+                        globalSegIdx += 1
+                        return (
+                          <p
+                            key={pidx}
+                            className={`section-paragraph${tts.currentIndex === segIdx ? ' tts-active' : ''}`}
+                            onClick={() => tts.speak(segments, segIdx)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {paragraph}
+                          </p>
+                        )
+                      })}
+                    </div>
+                  ))
+                })()}
               </div>
             </>
           )}

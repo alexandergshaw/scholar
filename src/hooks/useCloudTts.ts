@@ -23,10 +23,14 @@ interface UseCloudTtsReturn {
   paused: boolean
   loading: boolean
   error: string | null
-  speak: (text: string) => void
+  currentIndex: number
+  speak: (segments: string[], startIndex?: number) => void
   pause: () => void
   resume: () => void
   stop: () => void
+  seekTo: (index: number) => void
+  next: () => void
+  prev: () => void
   changeVoice: (newVoiceId: string) => void
 }
 
@@ -35,13 +39,15 @@ export function useCloudTts(): UseCloudTtsReturn {
   const [paused, setPaused] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [currentIndex, setCurrentIndex] = useState(-1)
 
   const { cloudVoice, rate, pitch } = useTtsSettingsStore()
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const chunksRef = useRef<string[]>([])
-  const currentChunkIndexRef = useRef(0)
-  const fullTextRef = useRef<string>('')
+  const segmentsRef = useRef<string[]>([])
+  const currentIndexRef = useRef(-1)
+  const subChunksRef = useRef<string[]>([])
+  const subChunkIndexRef = useRef(0)
 
   // Helper to map pitch from 0-2 range to Google -20..20 range
   const mapPitch = (p: number): number => {
@@ -52,25 +58,6 @@ export function useCloudTts(): UseCloudTtsReturn {
   const splitIntoSentences = (text: string): string[] => {
     const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text]
     return sentences.map((s) => s.trim()).filter((s) => s)
-  }
-
-  // Helper to chunk text into ~2000 char chunks on sentence boundaries
-  const chunkText = (text: string): string[] => {
-    const sentences = splitIntoSentences(text)
-    const chunks: string[] = []
-    let currentChunk = ''
-
-    for (const sentence of sentences) {
-      if ((currentChunk + ' ' + sentence).length > 2000) {
-        if (currentChunk) chunks.push(currentChunk)
-        currentChunk = sentence
-      } else {
-        currentChunk = currentChunk ? currentChunk + ' ' + sentence : sentence
-      }
-    }
-
-    if (currentChunk) chunks.push(currentChunk)
-    return chunks
   }
 
   // Initialize audio element on mount
@@ -90,25 +77,61 @@ export function useCloudTts(): UseCloudTtsReturn {
   }, [])
 
   const handleAudioEnded = useCallback(() => {
-    currentChunkIndexRef.current += 1
+    subChunkIndexRef.current += 1
 
-    if (currentChunkIndexRef.current < chunksRef.current.length) {
-      // Fetch and play next chunk
-      fetchAndPlayChunk(currentChunkIndexRef.current)
+    if (subChunkIndexRef.current < subChunksRef.current.length) {
+      // Play next sub-chunk of current segment
+      fetchAndPlayChunk(currentIndexRef.current, undefined, undefined, subChunkIndexRef.current)
     } else {
-      // All chunks done
-      setSpeaking(false)
-      setPaused(false)
-      chunksRef.current = []
-      currentChunkIndexRef.current = 0
+      // Current segment done, advance to next segment
+      if (currentIndexRef.current < segmentsRef.current.length - 1) {
+        const nextIdx = currentIndexRef.current + 1
+        currentIndexRef.current = nextIdx
+        setCurrentIndex(nextIdx)
+        subChunkIndexRef.current = 0
+        subChunksRef.current = []
+        fetchAndPlayChunk(nextIdx)
+      } else {
+        // All segments done
+        setSpeaking(false)
+        setPaused(false)
+        setLoading(false)
+      }
     }
   }, [])
 
   const fetchAndPlayChunk = useCallback(
-    async (chunkIndex: number, voiceOverride?: string, seekFraction?: number) => {
-      if (chunkIndex >= chunksRef.current.length) return
+    async (segmentIndex: number, voiceOverride?: string, seekFraction?: number, subChunkIndex?: number) => {
+      if (segmentIndex >= segmentsRef.current.length) return
 
-      const chunk = chunksRef.current[chunkIndex]
+      const segment = segmentsRef.current[segmentIndex]
+
+      // If subChunks not initialized, chunk the segment
+      if (subChunksRef.current.length === 0 || subChunkIndex === undefined) {
+        const sentences = splitIntoSentences(segment)
+        const chunks: string[] = []
+        let currentChunk = ''
+
+        for (const sentence of sentences) {
+          if ((currentChunk + ' ' + sentence).length > 2000) {
+            if (currentChunk) chunks.push(currentChunk)
+            currentChunk = sentence
+          } else {
+            currentChunk = currentChunk ? currentChunk + ' ' + sentence : sentence
+          }
+        }
+
+        if (currentChunk) chunks.push(currentChunk)
+
+        subChunksRef.current = chunks.length > 0 ? chunks : [segment]
+        subChunkIndexRef.current = subChunkIndex ?? 0
+      } else if (subChunkIndex !== undefined) {
+        subChunkIndexRef.current = subChunkIndex
+      }
+
+      if (subChunkIndexRef.current >= subChunksRef.current.length) return
+
+      const chunk = subChunksRef.current[subChunkIndexRef.current]
       setLoading(true)
 
       try {
@@ -191,11 +214,19 @@ export function useCloudTts(): UseCloudTtsReturn {
   )
 
   const speak = useCallback(
-    (text: string) => {
-      if (!text?.trim()) return
+    (segments: string[], startIndex: number = 0) => {
+      if (segments.length === 0) return
 
-      // Store full text
-      fullTextRef.current = text
+      // Clamp startIndex to valid range
+      const idx = Math.max(0, Math.min(startIndex, segments.length - 1))
+
+      // Store segments and reset
+      segmentsRef.current = segments
+      currentIndexRef.current = idx
+      subChunksRef.current = []
+      subChunkIndexRef.current = 0
+      setError(null)
+      setCurrentIndex(idx)
 
       // Stop any current playback
       if (audioRef.current) {
@@ -203,15 +234,8 @@ export function useCloudTts(): UseCloudTtsReturn {
         audioRef.current.src = ''
       }
 
-      // Clear chunks and reset
-      chunksRef.current = chunkText(text)
-      currentChunkIndexRef.current = 0
-      setError(null)
-
-      if (chunksRef.current.length === 0) return
-
-      // Fetch and play first chunk
-      fetchAndPlayChunk(0)
+      // Fetch and play first segment
+      fetchAndPlayChunk(idx)
     },
     [fetchAndPlayChunk]
   )
@@ -238,19 +262,55 @@ export function useCloudTts(): UseCloudTtsReturn {
     setSpeaking(false)
     setPaused(false)
     setLoading(false)
-    chunksRef.current = []
-    currentChunkIndexRef.current = 0
+    currentIndexRef.current = -1
+    setCurrentIndex(-1)
   }, [])
+
+  const seekTo = useCallback(
+    (index: number) => {
+      if (segmentsRef.current.length === 0) return
+
+      // Clamp to valid range
+      const newIdx = Math.max(0, Math.min(index, segmentsRef.current.length - 1))
+
+      // Stop current playback
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.src = ''
+      }
+
+      currentIndexRef.current = newIdx
+      setCurrentIndex(newIdx)
+      subChunksRef.current = []
+      subChunkIndexRef.current = 0
+
+      // Fetch and play the segment
+      fetchAndPlayChunk(newIdx)
+    },
+    [fetchAndPlayChunk]
+  )
+
+  const next = useCallback(() => {
+    if (currentIndexRef.current < segmentsRef.current.length - 1) {
+      seekTo(currentIndexRef.current + 1)
+    }
+  }, [seekTo])
+
+  const prev = useCallback(() => {
+    if (currentIndexRef.current > 0) {
+      seekTo(currentIndexRef.current - 1)
+    }
+  }, [seekTo])
 
   const changeVoice = useCallback(
     (newVoiceId: string) => {
       // If not currently speaking or loading, do nothing
       if (!speaking && !loading) return
 
-      const currentChunkIndex = currentChunkIndexRef.current
+      const currentSegmentIndex = currentIndexRef.current
 
-      // If we're past the chunks, stop gracefully
-      if (currentChunkIndex >= chunksRef.current.length) {
+      // If we're past the segments, stop gracefully
+      if (currentSegmentIndex < 0 || currentSegmentIndex >= segmentsRef.current.length) {
         setSpeaking(false)
         setPaused(false)
         return
@@ -259,18 +319,12 @@ export function useCloudTts(): UseCloudTtsReturn {
       // Capture pause state before re-fetching
       const wasPaused = paused
 
-      // Capture the current playback position within this chunk as a fraction
-      let seekFraction = 0
-      if (audioRef.current) {
-        const dur = audioRef.current.duration
-        const cur = audioRef.current.currentTime
-        if (isFinite(dur) && dur > 0) {
-          seekFraction = Math.max(0, Math.min(1, cur / dur))
-        }
-      }
+      // For cloud TTS, restart the current segment from the start (simpler than preserving position)
+      subChunksRef.current = []
+      subChunkIndexRef.current = 0
 
-      // Re-fetch and play current chunk with new voice, restoring position
-      fetchAndPlayChunk(currentChunkIndex, newVoiceId, seekFraction)
+      // Re-fetch and play current segment with new voice
+      fetchAndPlayChunk(currentSegmentIndex, newVoiceId)
 
       // If was paused, pause immediately after audio loads
       if (wasPaused && audioRef.current) {
@@ -292,10 +346,14 @@ export function useCloudTts(): UseCloudTtsReturn {
     paused,
     loading,
     error,
+    currentIndex,
     speak,
     pause,
     resume,
     stop,
+    seekTo,
+    next,
+    prev,
     changeVoice
   }
 }

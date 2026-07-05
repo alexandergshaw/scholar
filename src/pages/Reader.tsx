@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Star, Settings2, X, ExternalLink, Download, Check } from 'lucide-react'
 import { useReaderSettingsStore } from '../stores/readerSettingsStore'
@@ -8,6 +8,7 @@ import { useOfflineStore } from '../stores/offlineStore'
 import ReaderControls from '../components/ReaderControls'
 import AskBox from '../components/AskBox'
 import ListenBar from '../components/ListenBar'
+import { useReaderTts } from '../hooks/useReaderTts'
 import { Article, FullTextResult } from '../types'
 import { getWorkById, shortIdOf } from '../utils/openalexApi'
 import { fetchFullText } from '../utils/fulltextApi'
@@ -30,6 +31,20 @@ export default function Reader() {
   const { addRecent } = useRecentsStore()
   const { saveOffline, removeOffline } = useOfflineStore()
   const isSavedOffline = useOfflineStore(state => state.isSavedOffline)
+  const tts = useReaderTts()
+
+  // Build segments array for TTS
+  const segments = useMemo(() => {
+    const segs: string[] = []
+    if (fullText && fullText.available) {
+      fullText.sections.forEach(section => {
+        section.paragraphs.forEach(para => {
+          segs.push(para)
+        })
+      })
+    }
+    return segs
+  }, [fullText])
 
   // Load the article: first check offline store, then from persisted favorites/recents stores,
   // then fall back to fetching it directly from OpenAlex by id. The fallback makes
@@ -257,17 +272,7 @@ export default function Reader() {
                 </button>
               )
             })()}
-            <ListenBar
-              getText={() => {
-                const ft =
-                  fullText && fullText.available
-                    ? fullText.sections
-                        .map(s => [s.heading, ...s.paragraphs].filter(Boolean).join('. '))
-                        .join('. ')
-                    : article.abstract || ''
-                return [article.title, ft].filter(Boolean).join('. ')
-              }}
-            />
+            <ListenBar segments={segments} tts={tts} />
             <AskBox
               getContext={() => {
                 const ft =
@@ -304,18 +309,30 @@ export default function Reader() {
                 <p>Full text via {fullText.source}</p>
               </div>
               <div className="fulltext-sections">
-                {fullText.sections.map((section, idx) => (
-                  <div key={idx} className="fulltext-section">
-                    {section.heading && (
-                      <h2 className="section-heading">{section.heading}</h2>
-                    )}
-                    {section.paragraphs.map((paragraph, pidx) => (
-                      <p key={pidx} className="section-paragraph">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                ))}
+                {(() => {
+                  let globalSegIdx = 0
+                  return fullText.sections.map((section, idx) => (
+                    <div key={idx} className="fulltext-section">
+                      {section.heading && (
+                        <h2 className="section-heading">{section.heading}</h2>
+                      )}
+                      {section.paragraphs.map((paragraph, pidx) => {
+                        const segIdx = globalSegIdx
+                        globalSegIdx += 1
+                        return (
+                          <p
+                            key={pidx}
+                            className={`section-paragraph${tts.currentIndex === segIdx ? ' tts-active' : ''}`}
+                            onClick={() => tts.speak(segments, segIdx)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {paragraph}
+                          </p>
+                        )
+                      })}
+                    </div>
+                  ))
+                })()}
               </div>
             </>
           )}
