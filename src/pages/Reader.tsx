@@ -272,7 +272,7 @@ export default function Reader() {
                 </button>
               )
             })()}
-            <ListenBar segments={segments} tts={tts} />
+            <ListenBar segments={segments} tts={tts} articleKey={shortIdOf(article.id)} />
             <AskBox
               getContext={() => {
                 const ft =

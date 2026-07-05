@@ -109,7 +109,7 @@ export default function PrimaryReader() {
 
           {/* Action toolbar: listen, ask, and settings */}
           <div className="reader-widgets">
-            <ListenBar segments={segments} tts={tts} />
+            <ListenBar segments={segments} tts={tts} articleKey={src || title || 'primary'} />
             <AskBox
               getContext={() => {
                 const ft =

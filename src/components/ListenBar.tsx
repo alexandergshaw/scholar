@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal, SkipBack, SkipForward } from 'lucide-react'
+import { Volume2, Play, Pause, Square, Loader2, SlidersHorizontal, SkipBack, SkipForward, Bookmark, BookmarkCheck } from 'lucide-react'
 import { CURATED_CLOUD_VOICES } from '../hooks/useCloudTts'
 import { useTtsSettingsStore } from '../stores/ttsSettingsStore'
 import { useTts } from '../hooks/useTts'
+import { useBookmarksStore } from '../stores/bookmarksStore'
 import type { useReaderTts } from '../hooks/useReaderTts'
 import './ListenBar.css'
 
 interface ListenBarProps {
   segments: string[]
   tts: ReturnType<typeof useReaderTts>
+  articleKey: string
 }
 
 // Helper to rank voice naturalness (mirrors the one in useTts.ts)
@@ -39,10 +41,12 @@ function naturalnessRank(voice: SpeechSynthesisVoice): number {
   return baseRank
 }
 
-export default function ListenBar({ segments, tts }: ListenBarProps) {
+export default function ListenBar({ segments, tts, articleKey }: ListenBarProps) {
   const { voiceURI, rate, pitch, engine, cloudVoice, setVoiceURI, setRate, setPitch, setEngine, setCloudVoice } = useTtsSettingsStore()
   const deviceSortedVoices = useTts().sortedVoices
   const [showSettings, setShowSettings] = useState(false)
+  const { bookmarks, setBookmark } = useBookmarksStore()
+  const bookmarkIndex = bookmarks[articleKey]
 
   // Handle device voice change
   const handleDeviceVoiceChange = (newVoiceURI: string | null) => {
@@ -78,6 +82,18 @@ export default function ListenBar({ segments, tts }: ListenBarProps) {
     tts.stop()
   }
 
+  const handleBookmark = () => {
+    if (tts.currentIndex >= 0) {
+      setBookmark(articleKey, tts.currentIndex)
+    }
+  }
+
+  const handleResume = () => {
+    if (bookmarkIndex !== undefined) {
+      tts.speak(segments, bookmarkIndex)
+    }
+  }
+
   // Partition voices into natural and other
   const naturalVoices = deviceSortedVoices.filter(v => naturalnessRank(v) >= 70)
   const otherVoices = deviceSortedVoices.filter(v => naturalnessRank(v) < 70)
@@ -90,6 +106,25 @@ export default function ListenBar({ segments, tts }: ListenBarProps) {
             <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
             Preparing...
           </button>
+        ) : !tts.speaking && bookmarkIndex !== undefined ? (
+          <>
+            <button
+              className="listen-button"
+              onClick={handleResume}
+              title={`Resume at paragraph ${bookmarkIndex + 1}`}
+            >
+              <Bookmark size={18} />
+              Resume ¶{bookmarkIndex + 1}
+            </button>
+            <button
+              className="listen-button"
+              onClick={handleListen}
+              title="Read from beginning"
+            >
+              <Volume2 size={18} />
+              Listen
+            </button>
+          </>
         ) : !tts.speaking ? (
           <button
             className="listen-button"
@@ -132,6 +167,14 @@ export default function ListenBar({ segments, tts }: ListenBarProps) {
             >
               <Square size={18} />
               Stop
+            </button>
+            <button
+              className="listen-button bookmark"
+              onClick={handleBookmark}
+              disabled={tts.currentIndex < 0}
+              title={bookmarkIndex !== undefined ? `Update bookmark (paragraph ${bookmarkIndex + 1})` : 'Bookmark this spot'}
+            >
+              {bookmarkIndex !== undefined ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
             </button>
           </>
         )}
